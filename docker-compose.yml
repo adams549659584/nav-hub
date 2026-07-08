@@ -1,0 +1,16 @@
+services:
+  nav-hub:
+    image: ghcr.io/adams549659584/nav-hub:latest
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      SESSION_SECRET: change-me-in-production
+      ADMIN_USER: admin
+      ADMIN_PASSWORD: change-me
+    volumes:
+      - nav-hub-data:/data
+    restart: unless-stopped
+
+volumes:
+  nav-hub-data:
