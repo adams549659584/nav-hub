@@ -9,6 +9,7 @@ export default function Sidebar({
   onAddCategoryClick,
   onEditCategoryClick,
   onDeleteCategory,
+  isAdmin = false,
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, category: null });
@@ -79,7 +80,7 @@ export default function Sidebar({
             <div
               key={cat.id}
               className="nav-item-wrapper"
-              onContextMenu={(e) => handleContextMenu(e, cat)}
+              onContextMenu={isAdmin ? (e) => handleContextMenu(e, cat) : undefined}
             >
               <button
                 className={`nav-item ${isActive ? 'active' : ''}`}
@@ -91,7 +92,7 @@ export default function Sidebar({
               </button>
               
               {/* Ellipsis button visible on hover in expanded sidebar */}
-              {isExpanded && (
+              {isAdmin && isExpanded && (
                 <button
                   className="more-options-btn"
                   onClick={(e) => handleMoreClick(e, cat)}
@@ -105,29 +106,33 @@ export default function Sidebar({
         })}
 
         {/* Add Category Trigger Button */}
-        <button
-          className="nav-item add-btn"
-          onClick={onAddCategoryClick}
-          title="添加分类"
-        >
-          <Icons.Plus size={20} />
-          <span className="nav-label">添加分类</span>
-        </button>
+        {isAdmin && (
+          <button
+            className="nav-item add-btn"
+            onClick={onAddCategoryClick}
+            title="添加分类"
+          >
+            <Icons.Plus size={20} />
+            <span className="nav-label">添加分类</span>
+          </button>
+        )}
       </nav>
 
-      <div className="sidebar-footer">
-        <button
-          className="nav-item footer-btn"
-          onClick={onOpenSettings}
-          title={isExpanded ? undefined : "全局设置"}
-        >
-          <Icons.Settings size={20} />
-          <span className="nav-label">全局设置</span>
-        </button>
-      </div>
+      {isAdmin && (
+        <div className="sidebar-footer">
+          <button
+            className="nav-item footer-btn"
+            onClick={onOpenSettings}
+            title={isExpanded ? undefined : '全局设置'}
+          >
+            <Icons.Settings size={20} />
+            <span className="nav-label">全局设置</span>
+          </button>
+        </div>
+      )}
 
       {/* Floating Context / Dropdown Menu */}
-      {contextMenu.visible && (
+      {isAdmin && contextMenu.visible && (
         <div
           className="context-menu glass-card animate-fade"
           style={{

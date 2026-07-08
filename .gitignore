@@ -9,8 +9,15 @@ lerna-debug.log*
 
 node_modules
 dist
+web/dist
 dist-ssr
 *.local
+
+# Go
+/bin/
+*.exe
+*.test
+/data/
 
 # Editor directories and files
 .vscode/*

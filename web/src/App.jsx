@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import Sidebar from './components/Sidebar';
 import SearchBar from './components/SearchBar';
 import Dashboard from './components/Dashboard';
@@ -7,6 +7,7 @@ import EditShortcutModal from './components/EditShortcutModal';
 import AddCategoryModal from './components/AddCategoryModal';
 import CalendarWidget from './components/Widgets/CalendarWidget';
 import QuoteFooter from './components/QuoteFooter';
+import LoginModal from './components/LoginModal';
 import * as Icons from 'lucide-react';
 
 import {
@@ -15,24 +16,25 @@ import {
   DEFAULT_WALLPAPERS,
   DEFAULT_SETTINGS,
 } from './utils/defaultData';
+import {
+  fetchPublicConfig,
+  fetchAuthMe,
+  saveAdminConfig,
+  logout as apiLogout,
+} from './utils/api';
 import './App.css';
 
 export default function App() {
-  // --- States ---
-  const [categories, setCategories] = useState(() => {
-    const saved = localStorage.getItem('itab_categories');
-    return saved ? JSON.parse(saved) : DEFAULT_CATEGORIES;
-  });
-
-  const [shortcuts, setShortcuts] = useState(() => {
-    const saved = localStorage.getItem('itab_shortcuts');
-    return saved ? JSON.parse(saved) : DEFAULT_SHORTCUTS;
-  });
-
-  const [settings, setSettings] = useState(() => {
-    const saved = localStorage.getItem('itab_settings');
-    return saved ? JSON.parse(saved) : DEFAULT_SETTINGS;
-  });
+  const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
+  const [shortcuts, setShortcuts] = useState(DEFAULT_SHORTCUTS);
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [configLoading, setConfigLoading] = useState(true);
+  const [configError, setConfigError] = useState('');
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [isLoginOpen, setIsLoginOpen] = useState(false);
+  const [saveError, setSaveError] = useState('');
+  const skipPersist = useRef(true);
+  const saveTimer = useRef(null);
 
   const [activeCategoryId, setActiveCategoryId] = useState('common');
   const [isEditing, setIsEditing] = useState(false);
@@ -43,23 +45,69 @@ export default function App() {
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
   const [categoryToEdit, setCategoryToEdit] = useState(null);
 
-  // --- Persistence ---
-  useEffect(() => {
-    localStorage.setItem('itab_categories', JSON.stringify(categories));
-  }, [categories]);
+  const applyConfig = useCallback((cfg) => {
+    if (cfg.categories?.length) setCategories(cfg.categories);
+    if (cfg.shortcuts) setShortcuts(cfg.shortcuts);
+    if (cfg.settings) setSettings({ ...DEFAULT_SETTINGS, ...cfg.settings });
+  }, []);
 
   useEffect(() => {
-    localStorage.setItem('itab_shortcuts', JSON.stringify(shortcuts));
-  }, [shortcuts]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const [cfg, me] = await Promise.all([fetchPublicConfig(), fetchAuthMe()]);
+        if (cancelled) return;
+        applyConfig(cfg);
+        setIsAdmin(!!me.admin);
+        setConfigError('');
+      } catch {
+        if (!cancelled) setConfigError('无法加载配置，显示默认数据');
+      } finally {
+        if (!cancelled) {
+          setConfigLoading(false);
+          skipPersist.current = true;
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [applyConfig]);
+
+  const persistConfig = useCallback(
+    (cats, shorts, sett) => {
+      if (!isAdmin) return;
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(async () => {
+        try {
+          await saveAdminConfig({
+            categories: cats,
+            shortcuts: shorts,
+            settings: sett,
+          });
+          setSaveError('');
+        } catch (e) {
+          setSaveError(e.message || '保存失败');
+        }
+      }, 600);
+    },
+    [isAdmin]
+  );
 
   useEffect(() => {
-    localStorage.setItem('itab_settings', JSON.stringify(settings));
-  }, [settings]);
+    if (skipPersist.current) {
+      skipPersist.current = false;
+      return;
+    }
+    persistConfig(categories, shortcuts, settings);
+  }, [categories, shortcuts, settings, persistConfig]);
 
-  // --- Theme variables (Light / Dark mode adaptation) ---
+  useEffect(() => {
+    if (!isAdmin) setIsEditing(false);
+  }, [isAdmin]);
+
   useEffect(() => {
     const root = document.documentElement;
-    // Set active text colors based on brightness
     if (settings.bgBrightness < 60) {
       root.style.setProperty('--text-color', '#ffffff');
       root.style.setProperty('--text-secondary', 'rgba(255, 255, 255, 0.7)');
@@ -67,7 +115,6 @@ export default function App() {
       root.style.setProperty('--glass-border', 'rgba(255, 255, 255, 0.08)');
       root.style.setProperty('--glass-shadow', '0 8px 32px 0 rgba(0, 0, 0, 0.37)');
     } else {
-      // adapt to wallpaper presets - default is dark immersive overlay
       root.style.setProperty('--text-color', '#ffffff');
       root.style.setProperty('--text-secondary', 'rgba(255, 255, 255, 0.7)');
       root.style.setProperty('--glass-bg', 'rgba(15, 15, 20, 0.5)');
@@ -76,7 +123,6 @@ export default function App() {
     }
   }, [settings.bgBrightness]);
 
-  // --- Wallpaper Helper ---
   const getWallpaperStyles = () => {
     let backgroundStyle = {};
     const filters = `blur(${settings.bgBlur}px) brightness(${settings.bgBrightness}%)`;
@@ -87,7 +133,9 @@ export default function App() {
         filter: filters,
       };
     } else {
-      const activeWp = DEFAULT_WALLPAPERS.find((w) => w.id === settings.selectedWallpaper) || DEFAULT_WALLPAPERS[0];
+      const activeWp =
+        DEFAULT_WALLPAPERS.find((w) => w.id === settings.selectedWallpaper) ||
+        DEFAULT_WALLPAPERS[0];
       if (activeWp.url.startsWith('#')) {
         backgroundStyle = {
           backgroundColor: activeWp.url,
@@ -104,17 +152,12 @@ export default function App() {
     return backgroundStyle;
   };
 
-  // --- Category Handlers ---
   const handleSaveCategory = (name, icon = 'Grid', id) => {
     if (id) {
       setCategories(categories.map((c) => (c.id === id ? { ...c, name, icon } : c)));
     } else {
       const newId = `cat-${Date.now()}`;
-      const newCat = {
-        id: newId,
-        name,
-        icon,
-      };
+      const newCat = { id: newId, name, icon };
       setCategories([...categories, newCat]);
       setActiveCategoryId(newId);
     }
@@ -127,9 +170,8 @@ export default function App() {
 
   const handleDeleteCategory = (catId) => {
     if (categories.length <= 1) return;
-    if (catId === 'common') return; // Cannot delete core
+    if (catId === 'common') return;
 
-    // Confirm deletion
     if (window.confirm('删除该分类将会同时删除分类下的所有快捷方式，确定删除吗？')) {
       setCategories(categories.filter((c) => c.id !== catId));
       setShortcuts(shortcuts.filter((s) => s.categoryId !== catId));
@@ -137,20 +179,16 @@ export default function App() {
     }
   };
 
-  // --- Shortcut Handlers ---
   const handleSaveShortcut = (payload) => {
     const exists = shortcuts.some((s) => s.id === payload.id);
     if (exists) {
       setShortcuts(
-        shortcuts.map((s) => (s.id === payload.id ? { ...payload, categoryId: s.categoryId } : s))
+        shortcuts.map((s) =>
+          s.id === payload.id ? { ...payload, categoryId: s.categoryId } : s
+        )
       );
     } else {
-      // Append current category id
-      const newShortcut = {
-        ...payload,
-        categoryId: activeCategoryId,
-      };
-      setShortcuts([...shortcuts, newShortcut]);
+      setShortcuts([...shortcuts, { ...payload, categoryId: activeCategoryId }]);
     }
     setShortcutToEdit(null);
   };
@@ -173,39 +211,56 @@ export default function App() {
     setIsEditShortcutOpen(true);
   };
 
-  // --- Data Management Handlers ---
-  const handleExportData = () => {
-    return {
-      categories,
-      shortcuts,
-      settings,
-    };
-  };
+  const handleExportData = () => ({
+    categories,
+    shortcuts,
+    settings,
+  });
 
   const handleImportData = (parsedData) => {
     if (parsedData.categories) setCategories(parsedData.categories);
     if (parsedData.shortcuts) setShortcuts(parsedData.shortcuts);
-    if (parsedData.settings) setSettings(parsedData.settings);
+    if (parsedData.settings) setSettings({ ...DEFAULT_SETTINGS, ...parsedData.settings });
   };
 
-  const handleResetAll = () => {
-    localStorage.removeItem('itab_categories');
-    localStorage.removeItem('itab_shortcuts');
-    localStorage.removeItem('itab_settings');
+  const handleResetAll = async () => {
     setCategories(DEFAULT_CATEGORIES);
     setShortcuts(DEFAULT_SHORTCUTS);
     setSettings(DEFAULT_SETTINGS);
     setActiveCategoryId('common');
     setIsEditing(false);
+    skipPersist.current = false;
+    if (isAdmin) {
+      await saveAdminConfig({
+        categories: DEFAULT_CATEGORIES,
+        shortcuts: DEFAULT_SHORTCUTS,
+        settings: DEFAULT_SETTINGS,
+      });
+    }
   };
+
+  const handleLogout = async () => {
+    await apiLogout();
+    setIsAdmin(false);
+    setIsEditing(false);
+    const cfg = await fetchPublicConfig();
+    applyConfig(cfg);
+    skipPersist.current = true;
+  };
+
+  if (configLoading) {
+    return (
+      <div className="app-container" style={{ alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: 'rgba(255,255,255,0.7)' }}>加载中…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="app-container">
-      {/* Background elements */}
       <div className="wallpaper-bg" style={getWallpaperStyles()} />
       <div className="wallpaper-overlay" />
 
-      {/* Sidebar navigation */}
       <Sidebar
         categories={categories}
         activeCategoryId={activeCategoryId}
@@ -214,38 +269,60 @@ export default function App() {
         onAddCategoryClick={() => setIsAddCategoryOpen(true)}
         onEditCategoryClick={handleEditCategoryClick}
         onDeleteCategory={handleDeleteCategory}
-        isEditing={isEditing}
+        isAdmin={isAdmin}
       />
 
-      {/* Main Content Dashboard */}
       <main className="main-content">
-        {/* Floating Edit Mode indicator */}
         <div className="top-actions-bar">
-          <button
-            className={`glass-btn edit-toggle-btn ${isEditing ? 'active-editing' : ''}`}
-            onClick={() => setIsEditing(!isEditing)}
-          >
-            {isEditing ? (
-              <>
-                <Icons.Check size={14} />
-                <span>退出编辑</span>
-              </>
-            ) : (
-              <>
-                <Icons.Edit2 size={14} />
-                <span>编辑布局</span>
-              </>
-            )}
-          </button>
+          {configError && (
+            <span style={{ fontSize: 12, color: '#fcd34d', marginRight: 8 }}>{configError}</span>
+          )}
+          {saveError && (
+            <span style={{ fontSize: 12, color: '#fca5a5', marginRight: 8 }}>{saveError}</span>
+          )}
+          {isAdmin ? (
+            <>
+              <button
+                className={`glass-btn edit-toggle-btn ${isEditing ? 'active-editing' : ''}`}
+                onClick={() => setIsEditing(!isEditing)}
+              >
+                {isEditing ? (
+                  <>
+                    <Icons.Check size={14} />
+                    <span>退出编辑</span>
+                  </>
+                ) : (
+                  <>
+                    <Icons.Edit2 size={14} />
+                    <span>编辑布局</span>
+                  </>
+                )}
+              </button>
+              <button className="glass-btn edit-toggle-btn" onClick={handleLogout} type="button">
+                <Icons.LogOut size={14} />
+                <span>退出</span>
+              </button>
+            </>
+          ) : (
+            <button
+              className="glass-btn edit-toggle-btn"
+              onClick={() => setIsLoginOpen(true)}
+              type="button"
+            >
+              <Icons.Lock size={14} />
+              <span>管理员</span>
+            </button>
+          )}
         </div>
 
-        {/* Clock/Calendar Widget in the middle */}
         {settings.showCalendar && <CalendarWidget isHeader={true} />}
 
-        {/* Search Engine and Input bar */}
         <SearchBar
           currentEngineId={settings.searchEngine}
-          onChangeEngine={(engineId) => setSettings({ ...settings, searchEngine: engineId })}
+          onChangeEngine={(engineId) => {
+            if (!isAdmin) return;
+            setSettings({ ...settings, searchEngine: engineId });
+          }}
           showSuggestionsSetting={settings.showSuggestions !== false}
           query={searchQuery}
           onChangeQuery={setSearchQuery}
@@ -254,12 +331,14 @@ export default function App() {
         />
 
         <Dashboard
-          shortcuts={shortcuts.filter(s =>
-            s.categoryId === activeCategoryId &&
-            (searchQuery.trim() === '' || s.name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+          shortcuts={shortcuts.filter(
+            (s) =>
+              s.categoryId === activeCategoryId &&
+              (searchQuery.trim() === '' ||
+                s.name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
           )}
           activeCategoryId={activeCategoryId}
-          isEditing={isEditing}
+          isEditing={isAdmin && isEditing}
           onDeleteShortcut={handleDeleteShortcut}
           onEditShortcut={handleEditShortcutClick}
           onUpdateShortcut={handleUpdateShortcut}
@@ -267,36 +346,49 @@ export default function App() {
           settings={settings}
         />
 
-        {/* Daily Quote Footer */}
         {settings.showQuote !== false && <QuoteFooter />}
       </main>
 
-      {/* Modals Drawers */}
-      <SettingsModal
-        isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
-        settings={settings}
-        onUpdateSettings={setSettings}
-        onResetAll={handleResetAll}
-        onImportData={handleImportData}
-        onExportData={handleExportData}
-      />
+      {isAdmin && (
+        <SettingsModal
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+          settings={settings}
+          onUpdateSettings={setSettings}
+          onResetAll={handleResetAll}
+          onImportData={handleImportData}
+          onExportData={handleExportData}
+        />
+      )}
 
-      <EditShortcutModal
-        isOpen={isEditShortcutOpen}
-        onClose={() => setIsEditShortcutOpen(false)}
-        onSave={handleSaveShortcut}
-        shortcutToEdit={shortcutToEdit}
-      />
+      {isAdmin && (
+        <EditShortcutModal
+          isOpen={isEditShortcutOpen}
+          onClose={() => setIsEditShortcutOpen(false)}
+          onSave={handleSaveShortcut}
+          shortcutToEdit={shortcutToEdit}
+        />
+      )}
 
-      <AddCategoryModal
-        isOpen={isAddCategoryOpen}
-        onClose={() => {
-          setIsAddCategoryOpen(false);
-          setCategoryToEdit(null);
+      {isAdmin && (
+        <AddCategoryModal
+          isOpen={isAddCategoryOpen}
+          onClose={() => {
+            setIsAddCategoryOpen(false);
+            setCategoryToEdit(null);
+          }}
+          onSave={handleSaveCategory}
+          editingCategory={categoryToEdit}
+        />
+      )}
+
+      <LoginModal
+        isOpen={isLoginOpen}
+        onClose={() => setIsLoginOpen(false)}
+        onSuccess={async () => {
+          const me = await fetchAuthMe();
+          setIsAdmin(!!me.admin);
         }}
-        onSave={handleSaveCategory}
-        editingCategory={categoryToEdit}
       />
 
       <style>{`
@@ -306,6 +398,7 @@ export default function App() {
           gap: 12px;
           margin-bottom: -10px;
           z-index: 25;
+          align-items: center;
         }
 
         .edit-toggle-btn {
