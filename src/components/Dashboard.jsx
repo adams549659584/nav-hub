@@ -27,7 +27,15 @@ export default function Dashboard({
   return (
     <div className="dashboard-container">
       {/* Shortcuts Grid Area */}
-      <div className="shortcuts-area">
+      <div
+        className="shortcuts-area"
+        style={{
+          maxWidth: settings.maxWidth === 'none' || !settings.maxWidth ? '100%' : `${settings.maxWidth}px`,
+          width: '100%',
+          marginLeft: 'auto',
+          marginRight: 'auto',
+        }}
+      >
         {/* Shortcuts Grid */}
         <div
           className="shortcuts-grid"
@@ -51,13 +59,15 @@ export default function Dashboard({
 
           {/* Add Shortcut tile (always 1x1) */}
           <div
-            className="add-shortcut-tile-wrapper flex-center"
+            className="add-shortcut-tile-wrapper"
             onClick={onAddShortcutClick}
             title="添加快捷方式"
           >
             <div
-              className={`add-shortcut-tile size-${settings.iconSize === 'small' ? 'sm' : settings.iconSize === 'large' ? 'lg' : 'md'}`}
+              className="add-shortcut-tile"
               style={{
+                width: '56px',
+                height: '56px',
                 borderRadius: settings.iconRadius || '16px',
               }}
             >
@@ -87,21 +97,27 @@ export default function Dashboard({
 
         .shortcuts-grid {
           display: grid;
-          grid-auto-flow: dense; /* automatically packs smaller components into holes */
+          grid-auto-flow: dense;
           align-items: stretch;
           justify-items: stretch;
           width: 100%;
         }
 
         .add-shortcut-tile-wrapper {
+          position: relative;
           display: flex;
           flex-direction: column;
           align-items: center;
-          gap: 8px;
+          justify-content: center;
+          gap: 6px;
           cursor: pointer;
           width: 100%;
           height: 100%;
-          justify-content: center;
+          transition: transform 0.2s ease;
+        }
+
+        .add-shortcut-tile-wrapper:hover {
+          transform: translateY(-4px);
         }
 
         .add-shortcut-tile {
@@ -119,7 +135,6 @@ export default function Dashboard({
           background: rgba(255, 255, 255, 0.15);
           border-color: rgba(255, 255, 255, 0.6);
           color: #fff;
-          transform: translateY(-4px);
           box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
         }
 

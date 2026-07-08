@@ -25,8 +25,7 @@ export default function SettingsModal({
 
   const handleCustomWpSubmit = (e) => {
     e.preventDefault();
-    updateSetting('customWallpaperUrl', customWp);
-    updateSetting('selectedWallpaper', ''); // Clear preset if using custom
+    onUpdateSettings({ ...settings, customWallpaperUrl: customWp, selectedWallpaper: '' });
   };
 
   const handleImportSubmit = (e) => {
@@ -112,8 +111,7 @@ export default function SettingsModal({
                         key={wp.id}
                         className={`wallpaper-tile ${isSelected ? 'selected' : ''}`}
                         onClick={() => {
-                          updateSetting('selectedWallpaper', wp.id);
-                          updateSetting('customWallpaperUrl', '');
+                          onUpdateSettings({ ...settings, selectedWallpaper: wp.id, customWallpaperUrl: '' });
                         }}
                         style={{
                           backgroundColor: isSolidColor ? wp.url : '#1e1e1e',
@@ -180,24 +178,7 @@ export default function SettingsModal({
             {/* LAYOUT PANE */}
             {activeTab === 'layout' && (
               <div className="pane-section animate-fade">
-                <h4>图标大小</h4>
-                <div className="select-buttons-row">
-                  {[
-                    { id: 'small', label: '小' },
-                    { id: 'medium', label: '中' },
-                    { id: 'large', label: '大' }
-                  ].map((size) => (
-                    <button
-                      key={size.id}
-                      className={`select-option-btn ${settings.iconSize === size.id ? 'active' : ''}`}
-                      onClick={() => updateSetting('iconSize', size.id)}
-                    >
-                      {size.label}
-                    </button>
-                  ))}
-                </div>
-
-                <h4 style={{ marginTop: '20px' }}>图标形状 (圆角)</h4>
+                <h4>图标形状 (圆角)</h4>
                 <div className="select-buttons-row">
                   {[
                     { radius: '0px', label: '直角' },
@@ -216,17 +197,20 @@ export default function SettingsModal({
                   ))}
                 </div>
 
-                <h4 style={{ marginTop: '20px' }}>网格列数</h4>
-                <div className="select-buttons-row">
-                  {[4, 5, 6, 8].map((col) => (
-                    <button
-                      key={col}
-                      className={`select-option-btn ${settings.columns === col ? 'active' : ''}`}
-                      onClick={() => updateSetting('columns', col)}
-                    >
-                      {col} 列
-                    </button>
-                  ))}
+                 <h4 style={{ marginTop: '20px' }}>网格列数</h4>
+                <div className="slider-item">
+                  <div className="slider-label">
+                    <span>主网格列数</span>
+                    <span>{settings.columns || 6} 列</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="4"
+                    max="16"
+                    value={settings.columns || 6}
+                    onChange={(e) => updateSetting('columns', parseInt(e.target.value))}
+                    className="setting-range"
+                  />
                 </div>
 
                 <h4 style={{ marginTop: '20px' }}>图标间距</h4>
@@ -237,12 +221,52 @@ export default function SettingsModal({
                   </div>
                   <input
                     type="range"
-                    min="16"
-                    max="48"
+                    min="0"
+                    max="64"
                     value={settings.gap}
                     onChange={(e) => updateSetting('gap', parseInt(e.target.value))}
                     className="setting-range"
                   />
+                </div>
+
+                <h4 style={{ marginTop: '20px' }}>布局最大宽度</h4>
+                <div className="slider-item">
+                  <div className="slider-label">
+                    <span>最大宽度</span>
+                    <span>{settings.maxWidth === 'none' || !settings.maxWidth ? '不限 (满屏)' : `${settings.maxWidth}px`}</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="600"
+                    max="1600"
+                    step="50"
+                    value={settings.maxWidth === 'none' || !settings.maxWidth ? 1600 : settings.maxWidth}
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      updateSetting('maxWidth', val === 1600 ? 'none' : val);
+                    }}
+                    className="setting-range"
+                  />
+                  <div className="range-presets-row">
+                    {[
+                      { value: 960, label: '窄版 (960px)' },
+                      { value: 1200, label: '中等 (1200px)' },
+                      { value: 1440, label: '宽版 (1440px)' },
+                      { value: 1600, label: '不限 (满屏)' }
+                    ].map((p) => {
+                      const isActive = (p.value === 1600 && (settings.maxWidth === 'none' || !settings.maxWidth)) || (settings.maxWidth === p.value);
+                      return (
+                        <button
+                          key={p.value}
+                          type="button"
+                          className={`range-preset-pill ${isActive ? 'active' : ''}`}
+                          onClick={() => updateSetting('maxWidth', p.value === 1600 ? 'none' : p.value)}
+                        >
+                          {p.label.split(' ')[0]}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 <h4 style={{ marginTop: '20px' }}>默认搜索引擎</h4>
@@ -539,6 +563,37 @@ export default function SettingsModal({
           justify-content: space-between;
           font-size: 12px;
           color: rgba(255, 255, 255, 0.7);
+        }
+
+        .range-presets-row {
+          display: flex;
+          justify-content: space-between;
+          margin-top: 8px;
+          gap: 6px;
+        }
+
+        .range-preset-pill {
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          color: rgba(255, 255, 255, 0.5);
+          font-size: 10px;
+          padding: 3px 8px;
+          border-radius: 99px;
+          cursor: pointer;
+          transition: all 0.2s;
+          outline: none;
+        }
+
+        .range-preset-pill:hover {
+          color: white;
+          background: rgba(255, 255, 255, 0.12);
+        }
+
+        .range-preset-pill.active {
+          background: #3b82f6;
+          color: white;
+          border-color: #3b82f6;
+          box-shadow: 0 2px 6px rgba(59, 130, 246, 0.35);
         }
 
         .setting-range {

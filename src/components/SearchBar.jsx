@@ -6,8 +6,11 @@ export default function SearchBar({
   currentEngineId,
   onChangeEngine,
   showSuggestionsSetting,
+  query,
+  onChangeQuery,
+  shortcuts = [],
+  activeCategoryId,
 }) {
-  const [query, setQuery] = useState('');
   const [isOpenEngineMenu, setIsOpenEngineMenu] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -15,6 +18,12 @@ export default function SearchBar({
   const searchContainerRef = useRef(null);
 
   const currentEngine = SEARCH_ENGINES.find((e) => e.id === currentEngineId) || SEARCH_ENGINES[0];
+
+  // Filter local bookmarks/shortcuts matching current category and search query
+  const matchingLocalShortcuts = (query && query.trim()) ? shortcuts.filter(s =>
+    s.categoryId === activeCategoryId &&
+    s.name.toLowerCase().includes(query.trim().toLowerCase())
+  ) : [];
 
   // Close menus on clicking outside
   useEffect(() => {
@@ -32,7 +41,7 @@ export default function SearchBar({
 
   // Generate mock intelligent search suggestions
   useEffect(() => {
-    if (!query.trim() || !showSuggestionsSetting) {
+    if (!query || !query.trim() || !showSuggestionsSetting) {
       setSuggestions([]);
       return;
     }
@@ -85,7 +94,7 @@ export default function SearchBar({
   };
 
   const clearQuery = () => {
-    setQuery('');
+    onChangeQuery('');
     setSuggestions([]);
   };
 
@@ -146,9 +155,9 @@ export default function SearchBar({
         {/* Input */}
         <input
           type="text"
-          value={query}
+          value={query || ''}
           onChange={(e) => {
-            setQuery(e.target.value);
+            onChangeQuery(e.target.value);
             setShowSuggestions(true);
           }}
           onFocus={() => setShowSuggestions(true)}
@@ -171,14 +180,39 @@ export default function SearchBar({
       </div>
 
       {/* Suggestions Popup */}
-      {showSuggestions && suggestions.length > 0 && (
+      {showSuggestions && (suggestions.length > 0 || matchingLocalShortcuts.length > 0) && (
         <div className="suggestions-list glass-card">
+          {/* Local Shortcuts Section */}
+          {matchingLocalShortcuts.length > 0 && (
+            <div className="local-shortcuts-suggestion-section">
+              <div className="suggestion-section-title">本地导航</div>
+              {matchingLocalShortcuts.map((s) => (
+                <button
+                  key={s.id}
+                  className="suggestion-item local-shortcut-item"
+                  onClick={() => {
+                    window.open(s.url, '_blank', 'noopener,noreferrer');
+                    onChangeQuery(''); // clear search query on select
+                    setShowSuggestions(false);
+                  }}
+                  type="button"
+                >
+                  <Icons.Bookmark size={13} className="local-shortcut-icon" />
+                  <span className="local-shortcut-name">{s.name}</span>
+                  <span className="local-shortcut-url">{s.url.replace('https://', '').replace('http://', '')}</span>
+                </button>
+              ))}
+              {suggestions.length > 0 && <div className="suggestion-section-divider" />}
+            </div>
+          )}
+
+          {/* Web Search Suggestions */}
           {suggestions.map((suggestion, index) => (
             <button
               key={index}
               className="suggestion-item"
               onClick={() => {
-                setQuery(suggestion);
+                onChangeQuery(suggestion);
                 handleSearch(suggestion);
               }}
               type="button"
@@ -366,6 +400,53 @@ export default function SearchBar({
 
         .suggestion-icon {
           color: rgba(255, 255, 255, 0.4);
+        }
+
+        .local-shortcuts-suggestion-section {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .suggestion-section-title {
+          font-size: 10px;
+          font-weight: 600;
+          color: rgba(255, 255, 255, 0.4);
+          padding: 6px 14px 4px 14px;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+        }
+
+        .local-shortcut-item {
+          display: flex;
+          align-items: center;
+          width: 100%;
+        }
+
+        .local-shortcut-icon {
+          color: #10b981;
+          flex-shrink: 0;
+        }
+
+        .local-shortcut-name {
+          font-weight: 500;
+          color: #fff;
+          margin-right: 8px;
+        }
+
+        .local-shortcut-url {
+          font-size: 11px;
+          color: rgba(255, 255, 255, 0.4);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 280px;
+        }
+
+        .suggestion-section-divider {
+          height: 1px;
+          background: rgba(255, 255, 255, 0.08);
+          margin: 6px 8px;
         }
       `}</style>
     </div>

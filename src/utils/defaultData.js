@@ -103,8 +103,9 @@ export const SEARCH_ENGINES = [
 export const DEFAULT_SETTINGS = {
   iconSize: 'medium',
   iconRadius: '20px',
-  columns: 6,
-  gap: 24,
+  columns: 10,
+  gap: 12,
+  maxWidth: 1200,
   bgBlur: 8,
   bgBrightness: 80,
   selectedWallpaper: 'wp-nature1',

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import * as Icons from 'lucide-react';
 
 const PRESET_COLORS = [
@@ -10,6 +10,7 @@ const PRESET_COLORS = [
   '#ec4899', // Pink
   '#6b7280', // Grey
   '#1e1e1e', // Dark
+  '#ffffff', // White
 ];
 
 export default function EditShortcutModal({
@@ -22,6 +23,8 @@ export default function EditShortcutModal({
   const [name, setName] = useState('');
   const [letter, setLetter] = useState('');
   const [bgColor, setBgColor] = useState(PRESET_COLORS[0]);
+  const [favicon, setFavicon] = useState('');
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     if (shortcutToEdit) {
@@ -29,11 +32,13 @@ export default function EditShortcutModal({
       setName(shortcutToEdit.name || '');
       setLetter(shortcutToEdit.letter || '');
       setBgColor(shortcutToEdit.bgColor || PRESET_COLORS[0]);
+      setFavicon(shortcutToEdit.favicon || '');
     } else {
       setUrl('');
       setName('');
       setLetter('');
       setBgColor(PRESET_COLORS[0]);
+      setFavicon('');
     }
   }, [shortcutToEdit, isOpen]);
 
@@ -64,6 +69,24 @@ export default function EditShortcutModal({
     }
   };
 
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Check size limit: 200KB max to avoid localStorage bloat
+    if (file.size > 200 * 1024) {
+      alert('图片大小不能超过 200KB，请压缩后上传！');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      setFavicon(uploadEvent.target.result); // Base64 data URL
+      setLetter(''); // Clear text letter
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!url.trim() || !name.trim()) return;
@@ -83,10 +106,20 @@ export default function EditShortcutModal({
       color: '#ffffff',
       sizeX: shortcutToEdit ? shortcutToEdit.sizeX || 1 : 1,
       sizeY: shortcutToEdit ? shortcutToEdit.sizeY || 1 : 1,
+      favicon: favicon.trim(),
     };
 
     onSave(payload);
     onClose();
+  };
+
+  const getTextColor = (bg) => {
+    if (!bg) return '#ffffff';
+    const clean = bg.toLowerCase().trim();
+    if (clean === '#ffffff' || clean === '#fff' || clean === 'white') {
+      return '#1e293b'; // slate-800 dark text
+    }
+    return '#ffffff';
   };
 
   if (!isOpen) return null;
@@ -128,13 +161,16 @@ export default function EditShortcutModal({
             />
           </div>
 
-          <div className="form-group-row">
+          <div className="form-group-row" style={{ alignItems: 'flex-end', gap: '12px' }}>
             <div className="form-group short-input">
               <label>图标文字</label>
               <input
                 type="text"
                 value={letter}
-                onChange={(e) => setLetter(e.target.value)}
+                onChange={(e) => {
+                  setLetter(e.target.value);
+                  if (e.target.value) setFavicon(''); // clear uploaded icon if typing text
+                }}
                 placeholder="G"
                 className="glass-input text-center"
                 maxLength={2}
@@ -142,13 +178,86 @@ export default function EditShortcutModal({
             </div>
 
             <div className="form-group flex-1">
-              <label>图标预览</label>
+              <label>上传本地图标</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  className="glass-btn"
+                  onClick={() => fileInputRef.current.click()}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontSize: '12px',
+                    height: '36px',
+                    padding: '0 12px',
+                    background: 'rgba(255,255,255,0.06)',
+                    borderColor: 'rgba(255,255,255,0.1)',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  <Icons.Upload size={13} />
+                  <span>上传图标</span>
+                </button>
+                {favicon && (
+                  <button
+                    type="button"
+                    className="glass-btn"
+                    onClick={() => setFavicon('')}
+                    style={{
+                      fontSize: '11px',
+                      height: '36px',
+                      padding: '0 10px',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      borderColor: 'rgba(239, 68, 68, 0.2)',
+                      color: '#fca5a5',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    清除
+                  </button>
+                )}
+              </div>
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+                accept="image/*"
+                style={{ display: 'none' }}
+              />
+            </div>
+
+            <div className="form-group" style={{ marginLeft: 'auto' }}>
+              <label>预览</label>
               <div className="icon-preview-container">
                 <div
                   className="icon-preview-tile"
-                  style={{ backgroundColor: bgColor, borderRadius: '12px' }}
+                  style={{
+                    backgroundColor: bgColor,
+                    color: getTextColor(bgColor),
+                    borderRadius: '12px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '36px',
+                    height: '36px'
+                  }}
                 >
-                  {letter || name.charAt(0) || '?'}
+                  {favicon ? (
+                    <img
+                      src={favicon}
+                      alt=""
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        objectFit: 'contain',
+                        borderRadius: '4px'
+                      }}
+                    />
+                  ) : (
+                    letter || name.charAt(0) || '?'
+                  )}
                 </div>
               </div>
             </div>
@@ -162,7 +271,10 @@ export default function EditShortcutModal({
                   key={color}
                   type="button"
                   className={`color-btn ${bgColor === color ? 'selected' : ''}`}
-                  style={{ backgroundColor: color }}
+                  style={{
+                    backgroundColor: color,
+                    border: color.toLowerCase() === '#ffffff' ? '1px solid rgba(255, 255, 255, 0.4)' : undefined
+                  }}
                   onClick={() => setBgColor(color)}
                 />
               ))}

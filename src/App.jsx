@@ -4,6 +4,7 @@ import SearchBar from './components/SearchBar';
 import Dashboard from './components/Dashboard';
 import SettingsModal from './components/SettingsModal';
 import EditShortcutModal from './components/EditShortcutModal';
+import AddCategoryModal from './components/AddCategoryModal';
 import CalendarWidget from './components/Widgets/CalendarWidget';
 import QuoteFooter from './components/QuoteFooter';
 import * as Icons from 'lucide-react';
@@ -38,6 +39,9 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isEditShortcutOpen, setIsEditShortcutOpen] = useState(false);
   const [shortcutToEdit, setShortcutToEdit] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
+  const [categoryToEdit, setCategoryToEdit] = useState(null);
 
   // --- Persistence ---
   useEffect(() => {
@@ -101,15 +105,24 @@ export default function App() {
   };
 
   // --- Category Handlers ---
-  const handleAddCategory = (name) => {
-    const newId = `cat-${Date.now()}`;
-    const newCat = {
-      id: newId,
-      name,
-      icon: 'Grid', // default to grid icon
-    };
-    setCategories([...categories, newCat]);
-    setActiveCategoryId(newId);
+  const handleSaveCategory = (name, icon = 'Grid', id) => {
+    if (id) {
+      setCategories(categories.map((c) => (c.id === id ? { ...c, name, icon } : c)));
+    } else {
+      const newId = `cat-${Date.now()}`;
+      const newCat = {
+        id: newId,
+        name,
+        icon,
+      };
+      setCategories([...categories, newCat]);
+      setActiveCategoryId(newId);
+    }
+  };
+
+  const handleEditCategoryClick = (category) => {
+    setCategoryToEdit(category);
+    setIsAddCategoryOpen(true);
   };
 
   const handleDeleteCategory = (catId) => {
@@ -198,7 +211,8 @@ export default function App() {
         activeCategoryId={activeCategoryId}
         setActiveCategoryId={setActiveCategoryId}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onAddCategory={handleAddCategory}
+        onAddCategoryClick={() => setIsAddCategoryOpen(true)}
+        onEditCategoryClick={handleEditCategoryClick}
         onDeleteCategory={handleDeleteCategory}
         isEditing={isEditing}
       />
@@ -233,10 +247,17 @@ export default function App() {
           currentEngineId={settings.searchEngine}
           onChangeEngine={(engineId) => setSettings({ ...settings, searchEngine: engineId })}
           showSuggestionsSetting={settings.showSuggestions !== false}
+          query={searchQuery}
+          onChangeQuery={setSearchQuery}
+          shortcuts={shortcuts}
+          activeCategoryId={activeCategoryId}
         />
 
         <Dashboard
-          shortcuts={shortcuts}
+          shortcuts={shortcuts.filter(s =>
+            s.categoryId === activeCategoryId &&
+            (searchQuery.trim() === '' || s.name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+          )}
           activeCategoryId={activeCategoryId}
           isEditing={isEditing}
           onDeleteShortcut={handleDeleteShortcut}
@@ -266,6 +287,16 @@ export default function App() {
         onClose={() => setIsEditShortcutOpen(false)}
         onSave={handleSaveShortcut}
         shortcutToEdit={shortcutToEdit}
+      />
+
+      <AddCategoryModal
+        isOpen={isAddCategoryOpen}
+        onClose={() => {
+          setIsAddCategoryOpen(false);
+          setCategoryToEdit(null);
+        }}
+        onSave={handleSaveCategory}
+        editingCategory={categoryToEdit}
       />
 
       <style>{`
