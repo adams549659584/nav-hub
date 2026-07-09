@@ -197,7 +197,7 @@ export default function EditShortcutModal({
             />
           </div>
 
-          <div className="form-group-row" style={{ alignItems: 'flex-end', gap: '12px' }}>
+          <div className="form-group-row icon-meta-row">
             <div className="form-group short-input">
               <label>图标文字</label>
               <input
@@ -215,23 +215,11 @@ export default function EditShortcutModal({
 
             <div className="form-group flex-1">
               <label>上传本地图标</label>
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div className="icon-upload-actions">
                 <button
                   type="button"
-                  className="glass-btn"
+                  className="glass-btn icon-upload-btn"
                   onClick={() => fileInputRef.current.click()}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontSize: '12px',
-                    height: '36px',
-                    padding: '0 12px',
-                    background: 'rgba(255,255,255,0.06)',
-                    borderColor: 'rgba(255,255,255,0.1)',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap'
-                  }}
                 >
                   <Icons.Upload size={13} />
                   <span>上传图标</span>
@@ -239,17 +227,8 @@ export default function EditShortcutModal({
                 {favicon && (
                   <button
                     type="button"
-                    className="glass-btn"
+                    className="glass-btn icon-clear-btn"
                     onClick={() => setFavicon('')}
-                    style={{
-                      fontSize: '11px',
-                      height: '36px',
-                      padding: '0 10px',
-                      background: 'rgba(239, 68, 68, 0.1)',
-                      borderColor: 'rgba(239, 68, 68, 0.2)',
-                      color: '#fca5a5',
-                      cursor: 'pointer'
-                    }}
                   >
                     清除
                   </button>
@@ -458,6 +437,47 @@ export default function EditShortcutModal({
           gap: 16px;
         }
 
+        /* 与 .glass-input 同高，避免写死 height 与输入框差 2px */
+        .icon-meta-row {
+          align-items: flex-end;
+          gap: 12px;
+        }
+
+        .icon-meta-row .glass-input {
+          height: 34px;
+          padding-top: 0;
+          padding-bottom: 0;
+        }
+
+        .icon-upload-actions {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+
+        .icon-upload-btn,
+        .icon-clear-btn {
+          height: 34px;
+          padding: 0 12px;
+          font-size: 12px;
+          line-height: 1;
+          white-space: nowrap;
+          cursor: pointer;
+        }
+
+        .icon-upload-btn {
+          background: rgba(255, 255, 255, 0.06);
+          border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .icon-clear-btn {
+          padding: 0 10px;
+          font-size: 11px;
+          background: rgba(239, 68, 68, 0.1);
+          border-color: rgba(239, 68, 68, 0.2);
+          color: #fca5a5;
+        }
+
         .short-input {
           width: 80px;
         }
@@ -473,19 +493,19 @@ export default function EditShortcutModal({
         .icon-preview-container {
           display: flex;
           align-items: center;
-          height: 44px;
+          height: 34px;
         }
 
         .icon-preview-tile {
-          width: 44px;
-          height: 44px;
+          width: 34px;
+          height: 34px;
           display: flex;
           align-items: center;
           justify-content: center;
           color: white;
           font-weight: bold;
-          font-size: 15px;
-          box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+          font-size: 13px;
+          box-shadow: 0 4px 10px rgba(0, 0, 0, 0.25);
           overflow: hidden;
           position: relative;
         }
