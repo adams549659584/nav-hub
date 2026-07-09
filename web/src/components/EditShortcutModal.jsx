@@ -22,7 +22,8 @@ export default function EditShortcutModal({
   const [url, setUrl] = useState('');
   const [name, setName] = useState('');
   const [letter, setLetter] = useState('');
-  const [bgColor, setBgColor] = useState(PRESET_COLORS[0]);
+  // 空字符串 = 透明背景
+  const [bgColor, setBgColor] = useState('');
   const [favicon, setFavicon] = useState('');
   const fileInputRef = useRef(null);
 
@@ -31,13 +32,13 @@ export default function EditShortcutModal({
       setUrl(shortcutToEdit.url || '');
       setName(shortcutToEdit.name || '');
       setLetter(shortcutToEdit.letter || '');
-      setBgColor(shortcutToEdit.bgColor || PRESET_COLORS[0]);
+      setBgColor(shortcutToEdit.bgColor || '');
       setFavicon(shortcutToEdit.favicon || '');
     } else {
       setUrl('');
       setName('');
       setLetter('');
-      setBgColor(PRESET_COLORS[0]);
+      setBgColor('');
       setFavicon('');
     }
   }, [shortcutToEdit, isOpen]);
@@ -85,6 +86,8 @@ export default function EditShortcutModal({
       setLetter(''); // Clear text letter
     };
     reader.readAsDataURL(file);
+    // 允许同一文件再次选择
+    e.target.value = '';
   };
 
   const handleSubmit = (e) => {
@@ -96,18 +99,24 @@ export default function EditShortcutModal({
       finalUrl = 'https://' + finalUrl;
     }
 
+    const hasIcon = !!favicon.trim();
     const payload = {
       id: shortcutToEdit?.id,
       name: name.trim(),
       url: finalUrl,
-      letter: (letter.trim() || name.trim().charAt(0)).toUpperCase(),
-      bgColor,
+      // 有自定义图标时可不填文字
+      letter: hasIcon
+        ? (letter.trim() || '')
+        : (letter.trim() || name.trim().charAt(0)).toUpperCase(),
+      bgColor: bgColor || '',
       favicon: favicon.trim(),
     };
 
     onSave(payload);
     onClose();
   };
+
+  const isTransparent = !bgColor;
 
   const getTextColor = (bg) => {
     if (!bg) return '#ffffff';
@@ -117,6 +126,17 @@ export default function EditShortcutModal({
     }
     return '#ffffff';
   };
+
+  const tileBgStyle = isTransparent
+    ? {
+        backgroundColor: 'transparent',
+        // 棋盘格提示透明
+        backgroundImage:
+          'linear-gradient(45deg, rgba(255,255,255,0.12) 25%, transparent 25%), linear-gradient(-45deg, rgba(255,255,255,0.12) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.12) 75%), linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.12) 75%)',
+        backgroundSize: '8px 8px',
+        backgroundPosition: '0 0, 0 4px, 4px -4px, -4px 0',
+      }
+    : { backgroundColor: bgColor };
 
   if (!isOpen) return null;
 
@@ -228,29 +248,15 @@ export default function EditShortcutModal({
               <label>预览</label>
               <div className="icon-preview-container">
                 <div
-                  className="icon-preview-tile"
+                  className={`icon-preview-tile${favicon ? ' has-favicon' : ''}`}
                   style={{
-                    backgroundColor: bgColor,
+                    ...tileBgStyle,
                     color: getTextColor(bgColor),
                     borderRadius: '12px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    width: '36px',
-                    height: '36px'
                   }}
                 >
                   {favicon ? (
-                    <img
-                      src={favicon}
-                      alt=""
-                      style={{
-                        width: '24px',
-                        height: '24px',
-                        objectFit: 'contain',
-                        borderRadius: '4px'
-                      }}
-                    />
+                    <img src={favicon} alt="" className="icon-preview-img" />
                   ) : (
                     letter || name.charAt(0) || '?'
                   )}
@@ -260,8 +266,19 @@ export default function EditShortcutModal({
           </div>
 
           <div className="form-group">
-            <label>背景颜色</label>
+            <label>
+              背景颜色
+              <span className="label-hint">可选，清除后为透明</span>
+            </label>
             <div className="colors-grid">
+              <button
+                type="button"
+                className={`color-btn transparent-btn ${isTransparent ? 'selected' : ''}`}
+                title="透明背景"
+                onClick={() => setBgColor('')}
+              >
+                <Icons.Ban size={12} />
+              </button>
               {PRESET_COLORS.map((color) => (
                 <button
                   key={color}
@@ -269,17 +286,32 @@ export default function EditShortcutModal({
                   className={`color-btn ${bgColor === color ? 'selected' : ''}`}
                   style={{
                     backgroundColor: color,
-                    border: color.toLowerCase() === '#ffffff' ? '1px solid rgba(255, 255, 255, 0.4)' : undefined
+                    border:
+                      color.toLowerCase() === '#ffffff'
+                        ? '1px solid rgba(255, 255, 255, 0.4)'
+                        : undefined,
                   }}
                   onClick={() => setBgColor(color)}
                 />
               ))}
               <input
                 type="color"
-                value={bgColor}
+                value={bgColor || '#3b82f6'}
                 onChange={(e) => setBgColor(e.target.value)}
                 className="color-picker-input"
+                title="自定义颜色"
               />
+              {!isTransparent && (
+                <button
+                  type="button"
+                  className="color-clear-btn"
+                  onClick={() => setBgColor('')}
+                  title="清除背景色"
+                >
+                  <Icons.Eraser size={12} />
+                  清除
+                </button>
+              )}
             </div>
           </div>
 
@@ -332,6 +364,15 @@ export default function EditShortcutModal({
         .form-group label {
           font-size: 11.5px;
           color: rgba(255, 255, 255, 0.55);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .label-hint {
+          font-size: 10px;
+          color: rgba(255, 255, 255, 0.35);
+          font-weight: 400;
         }
 
         .form-group-row {
@@ -354,12 +395,12 @@ export default function EditShortcutModal({
         .icon-preview-container {
           display: flex;
           align-items: center;
-          height: 36px;
+          height: 44px;
         }
 
         .icon-preview-tile {
-          width: 36px;
-          height: 36px;
+          width: 44px;
+          height: 44px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -367,6 +408,19 @@ export default function EditShortcutModal({
           font-weight: bold;
           font-size: 15px;
           box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+          overflow: hidden;
+          position: relative;
+        }
+
+        .icon-preview-tile.has-favicon {
+          padding: 0;
+        }
+
+        .icon-preview-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
         }
 
         .colors-grid {
@@ -382,11 +436,46 @@ export default function EditShortcutModal({
           border-radius: 50%;
           border: 2px solid transparent;
           cursor: pointer;
+          padding: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
         }
 
         .color-btn.selected {
           border-color: white;
           box-shadow: 0 0 6px rgba(255, 255, 255, 0.5);
+        }
+
+        .color-btn.transparent-btn {
+          background:
+            linear-gradient(45deg, rgba(255,255,255,0.25) 25%, transparent 25%),
+            linear-gradient(-45deg, rgba(255,255,255,0.25) 25%, transparent 25%),
+            linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.25) 75%),
+            linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.25) 75%);
+          background-size: 6px 6px;
+          background-position: 0 0, 0 3px, 3px -3px, -3px 0;
+          background-color: rgba(0,0,0,0.2);
+          color: rgba(255,255,255,0.7);
+        }
+
+        .color-clear-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          height: 22px;
+          padding: 0 8px;
+          border-radius: 999px;
+          border: 1px solid rgba(255,255,255,0.15);
+          background: rgba(255,255,255,0.06);
+          color: rgba(255,255,255,0.7);
+          font-size: 11px;
+          cursor: pointer;
+        }
+
+        .color-clear-btn:hover {
+          color: #fff;
+          background: rgba(255,255,255,0.12);
         }
 
         .color-picker-input {

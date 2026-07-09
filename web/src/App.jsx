@@ -257,7 +257,7 @@ export default function App() {
                 name: payload.name,
                 url: payload.url,
                 letter: payload.letter || '',
-                bgColor: payload.bgColor || '#3b82f6',
+                bgColor: payload.bgColor || '',
                 favicon: payload.favicon || '',
               }
             : s
@@ -272,7 +272,7 @@ export default function App() {
           name: payload.name,
           url: payload.url,
           letter: payload.letter || '',
-          bgColor: payload.bgColor || '#3b82f6',
+          bgColor: payload.bgColor || '',
           favicon: payload.favicon || '',
         },
       ]);

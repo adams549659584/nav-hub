@@ -10,6 +10,11 @@ function tileTextColor(bgColor) {
   return '#fff';
 }
 
+function tileBackground(bgColor) {
+  if (!bgColor) return 'transparent';
+  return bgColor;
+}
+
 export default function ShortcutIcon({
   shortcut,
   isEditing,
@@ -102,9 +107,11 @@ export default function ShortcutIcon({
       {/* 1x1 Standard Shortcut layout */}
       <div className="layout-1x1 flex-center-col">
         <div
-          className={`shortcut-tile ${getIconSizeClass()}`}
+          className={`shortcut-tile ${getIconSizeClass()}${
+            shortcut.favicon && !imageError ? ' has-favicon' : ''
+          }${!shortcut.bgColor ? ' is-transparent' : ''}`}
           style={{
-            backgroundColor: shortcut.bgColor || 'rgba(255,255,255,0.1)',
+            backgroundColor: tileBackground(shortcut.bgColor),
             color: tileTextColor(shortcut.bgColor),
             borderRadius: settings.iconRadius || '16px',
           }}
@@ -114,12 +121,6 @@ export default function ShortcutIcon({
               src={shortcut.favicon}
               alt=""
               className="shortcut-favicon-img"
-              style={{
-                width: '28px',
-                height: '28px',
-                objectFit: 'contain',
-                borderRadius: '4px'
-              }}
               onError={() => setImageError(true)}
             />
           ) : shortcut.letter ? (
@@ -203,6 +204,23 @@ export default function ShortcutIcon({
           position: relative;
           transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
           cursor: pointer;
+          overflow: hidden;
+        }
+
+        .shortcut-tile.is-transparent:not(.has-favicon) {
+          background-color: rgba(255, 255, 255, 0.08);
+          box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+        }
+
+        .shortcut-tile.has-favicon {
+          padding: 0;
+        }
+
+        .shortcut-favicon-img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          display: block;
         }
 
         .shortcut-item-wrapper:hover:not(.wiggle) .shortcut-tile {

@@ -571,9 +571,7 @@ func normalizeConfig(cfg *SiteConfig) error {
 			return fmt.Errorf("duplicate shortcut id %d", s.ID)
 		}
 		usedSC[s.ID] = true
-		if s.BgColor == "" {
-			s.BgColor = "#3b82f6"
-		}
+		// bgColor 允许为空（透明背景，常用于自定义图标）
 	}
 	return nil
 }
