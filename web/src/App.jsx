@@ -219,16 +219,18 @@ export default function App() {
   const filters = `blur(${blur}px) brightness(${brightness}%)`;
 
   const getWallpaperStyles = () => {
+    // 始终垫一层黑底，壁纸图/视频加载前不白屏
     if (activeWp.type === 'video') {
       return { filter: filters, backgroundColor: '#000' };
     }
     if (activeWp.type === 'color' || (activeWp.src || '').startsWith('#')) {
       return {
-        backgroundColor: activeWp.src,
+        backgroundColor: activeWp.src || '#000',
         filter: filters,
       };
     }
     return {
+      backgroundColor: '#000',
       backgroundImage: activeWp.src ? `url(${activeWp.src})` : undefined,
       filter: filters,
     };

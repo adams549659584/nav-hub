@@ -4,11 +4,22 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
     <title>导航页</title>
     <meta name="description" content="一个高颜值、极简、无广告的卡片式导航页。" />
+    <!-- 壁纸加载前先黑底，避免首屏白闪 -->
+    <style>
+      html, body, #root {
+        margin: 0;
+        background: #000;
+        color: #fff;
+        min-height: 100%;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
+
