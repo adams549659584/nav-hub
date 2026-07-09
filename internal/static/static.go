@@ -2,12 +2,16 @@ package static
 
 import (
 	"embed"
+	"io"
 	"io/fs"
 	"net/http"
+	"path"
 	"strings"
 )
 
-//go:embed dist/*
+// all:dist 递归嵌入 assets/ 等子目录；仅 dist/* 只会打进根层文件。
+//
+//go:embed all:dist
 var dist embed.FS
 
 func Handler() http.Handler {
@@ -15,23 +19,52 @@ func Handler() http.Handler {
 	if err != nil {
 		panic(err)
 	}
-	fileServer := http.FileServer(http.FS(sub))
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		path := strings.TrimPrefix(r.URL.Path, "/")
-		if path == "" {
-			path = "index.html"
-		}
-		if f, err := sub.Open(path); err != nil {
-			// SPA fallback
-			r2 := *r
-			r2.URL.Path = "/index.html"
-			fileServer.ServeHTTP(w, &r2)
+		if r.Method != http.MethodGet && r.Method != http.MethodHead {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 			return
-		} else {
-			_ = f.Close()
 		}
-		r2 := *r
-		r2.URL.Path = "/" + path
-		fileServer.ServeHTTP(w, &r2)
+
+		name := strings.TrimPrefix(path.Clean("/"+r.URL.Path), "/")
+		if name == "" || name == "." {
+			name = "index.html"
+		}
+		if strings.HasPrefix(name, "..") {
+			http.NotFound(w, r)
+			return
+		}
+
+		// 不用 http.FileServer：目录请求会 301 到 "./"，在部分代理/路径下会环。
+		if err := serveFile(w, r, sub, name); err != nil {
+			if name != "index.html" {
+				if err2 := serveFile(w, r, sub, "index.html"); err2 == nil {
+					return
+				}
+			}
+			http.NotFound(w, r)
+		}
 	})
+}
+
+func serveFile(w http.ResponseWriter, r *http.Request, fsys fs.FS, name string) error {
+	f, err := fsys.Open(name)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	st, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	if st.IsDir() {
+		return fs.ErrNotExist
+	}
+
+	rs, ok := f.(io.ReadSeeker)
+	if !ok {
+		return fs.ErrInvalid
+	}
+	http.ServeContent(w, r, path.Base(name), st.ModTime(), rs)
+	return nil
 }

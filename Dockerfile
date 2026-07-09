@@ -25,6 +25,10 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 COPY . .
 RUN rm -rf internal/static/dist && mkdir -p internal/static/dist
 COPY --from=web-build /app/web/dist/ internal/static/dist/
+# 确保前端产物进镜像（go:embed all:dist）；缺 assets 时让构建直接失败
+RUN test -f internal/static/dist/index.html \
+  && ls internal/static/dist/assets/*.js >/dev/null \
+  && ls internal/static/dist/assets/*.css >/dev/null
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
