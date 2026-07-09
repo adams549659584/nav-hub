@@ -1,9 +1,12 @@
 # syntax=docker/dockerfile:1
 
 FROM node:20-alpine AS web-build
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 WORKDIR /app/web
 COPY web/package.json web/pnpm-lock.yaml ./
+ENV CI=true
+# pnpm 11+ 默认校验 minimumReleaseAge，lock 里 vite/rolldown 等新包会在 CI 被拒
+ENV PNPM_CONFIG_MINIMUM_RELEASE_AGE=0
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 COPY web/ ./
