@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 
-FROM node:20-alpine AS web-build
+# 前端产物与架构无关，固定在构建机原生平台上构建，避免 arm64 下 QEMU 装 pnpm
+FROM --platform=$BUILDPLATFORM node:20-alpine AS web-build
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 WORKDIR /app/web
 COPY web/package.json web/pnpm-lock.yaml ./
@@ -12,7 +13,10 @@ RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
 COPY web/ ./
 RUN pnpm build
 
-FROM golang:1.22-alpine AS go-build
+# Go 交叉编译：在构建机原生平台编译目标 GOARCH，无需 QEMU 跑 go build
+FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS go-build
+ARG TARGETOS
+ARG TARGETARCH
 RUN apk add --no-cache git
 WORKDIR /app
 COPY go.mod go.sum ./
@@ -23,7 +27,8 @@ RUN rm -rf internal/static/dist && mkdir -p internal/static/dist
 COPY --from=web-build /app/web/dist/ internal/static/dist/
 RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /nav-hub ./cmd/nav-hub
+    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -trimpath -ldflags="-s -w" -o /nav-hub ./cmd/nav-hub
 
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates tzdata
