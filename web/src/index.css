@@ -172,11 +172,12 @@ button:disabled,
   cursor: not-allowed;
 }
 
-/* Glassmorphism utilities */
+/* Glassmorphism utilities
+   同时写标准与 -webkit-；并用不依赖 blur 的底色，避免生产压缩丢掉 backdrop-filter 后发虚 */
 .glass-card {
   background: var(--glass-bg);
-  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
   border-radius: 16px;
@@ -259,21 +260,27 @@ button:disabled,
   background: rgba(255, 255, 255, 0.4);
 }
 
-/* Modal styles */
+/* Modal styles
+   底色略加深，不单靠 blur 压暗；dev 有 blur、生产压缩若丢标准属性时观感仍接近 */
 .modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  inset: 0;
+  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 100;
+  /* 无 blur 时的兜底压暗（Docker/部分浏览器） */
+  background: rgba(0, 0, 0, 0.62);
+  -webkit-backdrop-filter: blur(12px) saturate(1.1);
+  backdrop-filter: blur(12px) saturate(1.1);
   animation: fadeIn 0.2s ease;
+}
+
+@supports ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+  .modal-overlay {
+    /* 有 blur 时略减纯黑，避免叠加上去过黑 */
+    background: rgba(0, 0, 0, 0.48);
+  }
 }
 
 .modal-content {
