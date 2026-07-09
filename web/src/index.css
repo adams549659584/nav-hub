@@ -68,6 +68,16 @@ body {
   background-position: center;
   background-repeat: no-repeat;
   transition: background-image 0.5s ease-in-out, filter 0.3s ease;
+  overflow: hidden;
+}
+
+.wallpaper-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
 }
 
 .wallpaper-overlay {
@@ -79,6 +89,7 @@ body {
   z-index: -1;
   background: rgba(0, 0, 0, 0.15); /* subtle contrast overlay */
   pointer-events: none;
+  transition: background 0.3s ease;
 }
 
 /* Clickable affordance: hand cursor on interactive UI */

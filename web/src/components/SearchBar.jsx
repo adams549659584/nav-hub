@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as Icons from 'lucide-react';
 import { SEARCH_ENGINES } from '../utils/defaultData';
 import { shortcutMatchesQuery } from '../utils/matchText';
@@ -15,18 +15,35 @@ export default function SearchBar({
   const [isOpenEngineMenu, setIsOpenEngineMenu] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const menuRef = useRef(null);
   const searchContainerRef = useRef(null);
+  const listRef = useRef(null);
 
   const currentEngine = SEARCH_ENGINES.find((e) => e.id === currentEngineId) || SEARCH_ENGINES[0];
 
   // 本地导航：当前分类 + 原文/全拼/拼音首字母
-  const matchingLocalShortcuts =
-    query && query.trim()
-      ? shortcuts.filter(
-          (s) => s.categoryId === activeCategoryId && shortcutMatchesQuery(s, query)
-        )
-      : [];
+  const matchingLocalShortcuts = useMemo(
+    () =>
+      query && query.trim()
+        ? shortcuts.filter(
+            (s) => s.categoryId === activeCategoryId && shortcutMatchesQuery(s, query)
+          )
+        : [],
+    [query, shortcuts, activeCategoryId]
+  );
+
+  // 扁平候选列表：本地导航在前，搜索建议在后（便于键盘上下切换）
+  const flatItems = useMemo(() => {
+    const items = [];
+    for (const s of matchingLocalShortcuts) {
+      items.push({ type: 'local', shortcut: s });
+    }
+    for (const text of suggestions) {
+      items.push({ type: 'web', text });
+    }
+    return items;
+  }, [matchingLocalShortcuts, suggestions]);
 
   // Close menus on clicking outside
   useEffect(() => {
@@ -36,6 +53,7 @@ export default function SearchBar({
       }
       if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
         setShowSuggestions(false);
+        setActiveIndex(-1);
       }
     }
     document.addEventListener('mousedown', handleClickOutside);
@@ -78,16 +96,81 @@ export default function SearchBar({
     setSuggestions(combined);
   }, [query, showSuggestionsSetting]);
 
+  // 查询或候选变化时重置高亮
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [query, flatItems.length]);
+
+  // 高亮项滚入可视区域
+  useEffect(() => {
+    if (activeIndex < 0 || !listRef.current) return;
+    const el = listRef.current.querySelector(`[data-suggest-index="${activeIndex}"]`);
+    el?.scrollIntoView({ block: 'nearest' });
+  }, [activeIndex]);
+
+  const openLocalShortcut = (s) => {
+    window.open(s.url, '_blank', 'noopener,noreferrer');
+    onChangeQuery('');
+    setShowSuggestions(false);
+    setActiveIndex(-1);
+  };
+
   const handleSearch = (searchQuery = query) => {
     if (!searchQuery.trim()) return;
     const url = `${currentEngine.url}${encodeURIComponent(searchQuery)}`;
     window.open(url, '_blank');
     setShowSuggestions(false);
+    setActiveIndex(-1);
+  };
+
+  const activateItem = (item) => {
+    if (!item) return;
+    if (item.type === 'local') {
+      openLocalShortcut(item.shortcut);
+    } else {
+      onChangeQuery(item.text);
+      handleSearch(item.text);
+    }
   };
 
   const handleKeyDown = (e) => {
+    const listOpen =
+      showSuggestions && flatItems.length > 0;
+
+    if (e.key === 'ArrowDown') {
+      if (!listOpen) {
+        if (flatItems.length > 0) setShowSuggestions(true);
+        return;
+      }
+      e.preventDefault();
+      setShowSuggestions(true);
+      setActiveIndex((i) => (i + 1) % flatItems.length);
+      return;
+    }
+
+    if (e.key === 'ArrowUp') {
+      if (!listOpen) return;
+      e.preventDefault();
+      setActiveIndex((i) => (i <= 0 ? flatItems.length - 1 : i - 1));
+      return;
+    }
+
+    if (e.key === 'Escape') {
+      if (showSuggestions) {
+        e.preventDefault();
+        setShowSuggestions(false);
+        setActiveIndex(-1);
+      }
+      return;
+    }
+
     if (e.key === 'Enter') {
-      handleSearch();
+      e.preventDefault();
+      if (listOpen && activeIndex >= 0 && activeIndex < flatItems.length) {
+        activateItem(flatItems[activeIndex]);
+      } else {
+        handleSearch();
+      }
     }
   };
 
@@ -99,7 +182,11 @@ export default function SearchBar({
   const clearQuery = () => {
     onChangeQuery('');
     setSuggestions([]);
+    setActiveIndex(-1);
   };
+
+  const panelVisible =
+    showSuggestions && (suggestions.length > 0 || matchingLocalShortcuts.length > 0);
 
   const GithubIcon = ({ size, color }) => (
     <svg viewBox="0 0 24 24" width={size} height={size} fill={color || 'currentColor'}>
@@ -167,6 +254,14 @@ export default function SearchBar({
           onKeyDown={handleKeyDown}
           placeholder={currentEngine.placeholder}
           className="search-input-field"
+          role="combobox"
+          aria-expanded={panelVisible}
+          aria-controls="search-suggestions-list"
+          aria-activedescendant={
+            activeIndex >= 0 ? `search-suggest-${activeIndex}` : undefined
+          }
+          aria-autocomplete="list"
+          autoComplete="off"
         />
 
         {/* Clear & Search Actions */}
@@ -183,47 +278,68 @@ export default function SearchBar({
       </div>
 
       {/* Suggestions Popup */}
-      {showSuggestions && (suggestions.length > 0 || matchingLocalShortcuts.length > 0) && (
-        <div className="suggestions-list glass-card">
+      {panelVisible && (
+        <div
+          id="search-suggestions-list"
+          ref={listRef}
+          className="suggestions-list glass-card"
+          role="listbox"
+        >
           {/* Local Shortcuts Section */}
           {matchingLocalShortcuts.length > 0 && (
             <div className="local-shortcuts-suggestion-section">
               <div className="suggestion-section-title">本地导航</div>
-              {matchingLocalShortcuts.map((s) => (
-                <button
-                  key={s.id}
-                  className="suggestion-item local-shortcut-item"
-                  onClick={() => {
-                    window.open(s.url, '_blank', 'noopener,noreferrer');
-                    onChangeQuery(''); // clear search query on select
-                    setShowSuggestions(false);
-                  }}
-                  type="button"
-                >
-                  <Icons.Bookmark size={13} className="local-shortcut-icon" />
-                  <span className="local-shortcut-name">{s.name}</span>
-                  <span className="local-shortcut-url">{s.url.replace('https://', '').replace('http://', '')}</span>
-                </button>
-              ))}
+              {matchingLocalShortcuts.map((s, i) => {
+                const idx = i;
+                const isActive = activeIndex === idx;
+                return (
+                  <button
+                    key={s.id}
+                    id={`search-suggest-${idx}`}
+                    data-suggest-index={idx}
+                    role="option"
+                    aria-selected={isActive}
+                    className={`suggestion-item local-shortcut-item${isActive ? ' is-active' : ''}`}
+                    onMouseEnter={() => setActiveIndex(idx)}
+                    onClick={() => openLocalShortcut(s)}
+                    type="button"
+                  >
+                    <Icons.Bookmark size={13} className="local-shortcut-icon" />
+                    <span className="local-shortcut-name">{s.name}</span>
+                    <span className="local-shortcut-url">
+                      {s.url.replace('https://', '').replace('http://', '')}
+                    </span>
+                  </button>
+                );
+              })}
               {suggestions.length > 0 && <div className="suggestion-section-divider" />}
             </div>
           )}
 
           {/* Web Search Suggestions */}
-          {suggestions.map((suggestion, index) => (
-            <button
-              key={index}
-              className="suggestion-item"
-              onClick={() => {
-                onChangeQuery(suggestion);
-                handleSearch(suggestion);
-              }}
-              type="button"
-            >
-              <Icons.Search size={14} className="suggestion-icon" />
-              <span>{suggestion}</span>
-            </button>
-          ))}
+          {suggestions.map((suggestion, i) => {
+            const idx = matchingLocalShortcuts.length + i;
+            const isActive = activeIndex === idx;
+            return (
+              <button
+                key={`web-${suggestion}-${i}`}
+                id={`search-suggest-${idx}`}
+                data-suggest-index={idx}
+                role="option"
+                aria-selected={isActive}
+                className={`suggestion-item${isActive ? ' is-active' : ''}`}
+                onMouseEnter={() => setActiveIndex(idx)}
+                onClick={() => {
+                  onChangeQuery(suggestion);
+                  handleSearch(suggestion);
+                }}
+                type="button"
+              >
+                <Icons.Search size={14} className="suggestion-icon" />
+                <span>{suggestion}</span>
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -396,9 +512,15 @@ export default function SearchBar({
           transition: background-color 0.15s;
         }
 
-        .suggestion-item:hover {
+        .suggestion-item:hover,
+        .suggestion-item.is-active {
           background: rgba(255, 255, 255, 0.1);
           color: white;
+        }
+
+        .suggestion-item.is-active {
+          background: rgba(59, 130, 246, 0.28);
+          box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.45);
         }
 
         .suggestion-icon {

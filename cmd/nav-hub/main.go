@@ -13,6 +13,7 @@ import (
 	"github.com/adams549659584/nav-hub/internal/seed"
 	"github.com/adams549659584/nav-hub/internal/static"
 	"github.com/adams549659584/nav-hub/internal/store"
+	"github.com/adams549659584/nav-hub/internal/wallpaper"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
@@ -69,6 +70,8 @@ func main() {
 			}
 			jsonOK(w, cfg)
 		})
+
+		wallpaper.Register(api)
 
 		api.Get("/auth/me", func(w http.ResponseWriter, r *http.Request) {
 			jsonOK(w, map[string]bool{"admin": sessions.IsLoggedIn(r)})

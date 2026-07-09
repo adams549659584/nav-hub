@@ -12,7 +12,6 @@
 - 搜索栏（多搜索引擎）
 - 壁纸、模糊与亮度等全局设置
 - 日历小组件、底部名言
-- 配置导入 / 导出（JSON）
 - 访客公开只读；管理员 Cookie Session 鉴权后写回服务端
 
 ## 技术栈
@@ -91,6 +90,8 @@ make dev-web        # Vite → http://localhost:5173（/api 代理到 8080）
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | `GET` | `/api/public/config` | 公开配置：`{ categories, shortcuts, settings }` |
+| `GET` | `/api/public/wallpapers/sources` | 壁纸库分类：纯色 / 必应 / 动态 / Wallhaven / Deepin / 自定义 |
+| `GET` | `/api/public/wallpapers?source=&page=&size=&q=` | 壁纸列表（服务端代理 Bing / Wallhaven 等） |
 | `GET` | `/api/auth/me` | `{ admin: boolean }` |
 | `POST` | `/api/auth/login` | `{ username, password }` → Set-Cookie |
 | `POST` | `/api/auth/logout` | 清除 Session |

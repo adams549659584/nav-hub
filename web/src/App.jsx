@@ -19,18 +19,22 @@ import {
 import {
   fetchPublicConfig,
   fetchAuthMe,
+  fetchWallpapers,
   saveAdminConfig,
   logout as apiLogout,
 } from './utils/api';
 import { findCommonCategoryId, nextCategoryCode, nextNumericId } from './utils/ids';
-import { normalizeImportedConfig } from './utils/normalizeConfig';
 import { shortcutMatchesQuery } from './utils/matchText';
+import {
+  applyWallpaperSelection,
+  normalizeWallpaperSettings,
+} from './utils/wallpaper';
 import './App.css';
 
 export default function App() {
   const [categories, setCategories] = useState(DEFAULT_CATEGORIES);
   const [shortcuts, setShortcuts] = useState(DEFAULT_SHORTCUTS);
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState(() => normalizeWallpaperSettings(DEFAULT_SETTINGS));
   const [configLoading, setConfigLoading] = useState(true);
   const [configError, setConfigError] = useState('');
   const [isAdmin, setIsAdmin] = useState(false);
@@ -59,7 +63,9 @@ export default function App() {
       });
     }
     if (cfg.shortcuts) setShortcuts(cfg.shortcuts);
-    if (cfg.settings) setSettings({ ...DEFAULT_SETTINGS, ...cfg.settings });
+    if (cfg.settings) {
+      setSettings(normalizeWallpaperSettings({ ...DEFAULT_SETTINGS, ...cfg.settings }));
+    }
   }, []);
 
   useEffect(() => {
@@ -117,9 +123,12 @@ export default function App() {
     if (!isAdmin) setIsEditing(false);
   }, [isAdmin]);
 
+  const wallpaper = normalizeWallpaperSettings(settings).wallpaper;
+
   useEffect(() => {
     const root = document.documentElement;
-    if (settings.bgBrightness < 60) {
+    const brightness = wallpaper.brightness ?? settings.bgBrightness ?? 80;
+    if (brightness < 60) {
       root.style.setProperty('--text-color', '#ffffff');
       root.style.setProperty('--text-secondary', 'rgba(255, 255, 255, 0.7)');
       root.style.setProperty('--glass-bg', 'rgba(20, 20, 20, 0.45)');
@@ -132,35 +141,75 @@ export default function App() {
       root.style.setProperty('--glass-border', 'rgba(255, 255, 255, 0.1)');
       root.style.setProperty('--glass-shadow', '0 8px 32px 0 rgba(0, 0, 0, 0.25)');
     }
-  }, [settings.bgBrightness]);
+  }, [wallpaper.brightness, settings.bgBrightness]);
+
+  // 必应每日自动壁纸
+  useEffect(() => {
+    if (!wallpaper.autoDaily || wallpaper.source !== 'bing') return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetchWallpapers({ source: 'bing', page: 1, size: 1 });
+        const item = res.items?.[0];
+        if (!item || cancelled) return;
+        if (item.src && item.src !== wallpaper.src) {
+          setSettings((prev) => applyWallpaperSelection(prev, { ...item, source: 'bing' }));
+          skipPersist.current = false;
+        }
+      } catch {
+        /* ignore network errors */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // only re-check when autoDaily toggled or source is bing
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wallpaper.autoDaily, wallpaper.source]);
+
+  const resolveWallpaperSrc = () => {
+    if (wallpaper.src) return wallpaper;
+    // legacy fallback
+    if (settings.customWallpaperUrl) {
+      return {
+        ...wallpaper,
+        type: 'image',
+        src: settings.customWallpaperUrl,
+      };
+    }
+    const preset =
+      DEFAULT_WALLPAPERS.find((w) => w.id === settings.selectedWallpaper) || DEFAULT_WALLPAPERS[0];
+    const isColor = preset.url.startsWith('#');
+    return {
+      ...wallpaper,
+      type: isColor ? 'color' : 'image',
+      src: preset.url,
+      title: preset.name,
+      id: preset.id,
+      source: 'preset',
+    };
+  };
+
+  const activeWp = resolveWallpaperSrc();
+  const blur = activeWp.blur ?? settings.bgBlur ?? 0;
+  const brightness = activeWp.brightness ?? settings.bgBrightness ?? 80;
+  const mask = activeWp.mask ?? 0.15;
+  const filters = `blur(${blur}px) brightness(${brightness}%)`;
 
   const getWallpaperStyles = () => {
-    let backgroundStyle = {};
-    const filters = `blur(${settings.bgBlur}px) brightness(${settings.bgBrightness}%)`;
-
-    if (settings.customWallpaperUrl) {
-      backgroundStyle = {
-        backgroundImage: `url(${settings.customWallpaperUrl})`,
+    if (activeWp.type === 'video') {
+      return { filter: filters, backgroundColor: '#000' };
+    }
+    if (activeWp.type === 'color' || (activeWp.src || '').startsWith('#')) {
+      return {
+        backgroundColor: activeWp.src,
         filter: filters,
       };
-    } else {
-      const activeWp =
-        DEFAULT_WALLPAPERS.find((w) => w.id === settings.selectedWallpaper) ||
-        DEFAULT_WALLPAPERS[0];
-      if (activeWp.url.startsWith('#')) {
-        backgroundStyle = {
-          backgroundColor: activeWp.url,
-          filter: filters,
-        };
-      } else {
-        backgroundStyle = {
-          backgroundImage: `url(${activeWp.url})`,
-          filter: filters,
-        };
-      }
     }
-
-    return backgroundStyle;
+    return {
+      backgroundImage: activeWp.src ? `url(${activeWp.src})` : undefined,
+      filter: filters,
+    };
   };
 
   const handleSaveCategory = (name, icon = 'Grid', id) => {
@@ -249,36 +298,6 @@ export default function App() {
     setIsEditShortcutOpen(true);
   };
 
-  const handleExportData = () => ({
-    categories,
-    shortcuts,
-    settings,
-  });
-
-  const handleImportData = (parsedData) => {
-    const normalized = normalizeImportedConfig(parsedData);
-    setCategories(normalized.categories);
-    setShortcuts(normalized.shortcuts);
-    setSettings({ ...DEFAULT_SETTINGS, ...normalized.settings });
-    setActiveCategoryId(findCommonCategoryId(normalized.categories));
-  };
-
-  const handleResetAll = async () => {
-    setCategories(DEFAULT_CATEGORIES);
-    setShortcuts(DEFAULT_SHORTCUTS);
-    setSettings(DEFAULT_SETTINGS);
-    setActiveCategoryId(findCommonCategoryId(DEFAULT_CATEGORIES));
-    setIsEditing(false);
-    skipPersist.current = false;
-    if (isAdmin) {
-      await saveAdminConfig({
-        categories: DEFAULT_CATEGORIES,
-        shortcuts: DEFAULT_SHORTCUTS,
-        settings: DEFAULT_SETTINGS,
-      });
-    }
-  };
-
   const handleLogout = async () => {
     await apiLogout();
     setIsAdmin(false);
@@ -298,8 +317,22 @@ export default function App() {
 
   return (
     <div className="app-container">
-      <div className="wallpaper-bg" style={getWallpaperStyles()} />
-      <div className="wallpaper-overlay" />
+      <div className="wallpaper-bg" style={getWallpaperStyles()}>
+        {activeWp.type === 'video' && activeWp.src && (
+          <video
+            className="wallpaper-video"
+            src={activeWp.src}
+            autoPlay
+            muted
+            loop
+            playsInline
+          />
+        )}
+      </div>
+      <div
+        className="wallpaper-overlay"
+        style={{ background: `rgba(0, 0, 0, ${mask})` }}
+      />
 
       <Sidebar
         categories={categories}
@@ -395,9 +428,6 @@ export default function App() {
           onClose={() => setIsSettingsOpen(false)}
           settings={settings}
           onUpdateSettings={setSettings}
-          onResetAll={handleResetAll}
-          onImportData={handleImportData}
-          onExportData={handleExportData}
         />
       )}
 

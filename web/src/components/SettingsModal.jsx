@@ -1,51 +1,37 @@
 import React, { useState } from 'react';
 import * as Icons from 'lucide-react';
-import { DEFAULT_WALLPAPERS, SEARCH_ENGINES } from '../utils/defaultData';
+import { SEARCH_ENGINES } from '../utils/defaultData';
+import WallpaperLibrary from './WallpaperLibrary';
+import {
+  applyWallpaperSelection,
+  normalizeWallpaperSettings,
+  updateWallpaperField,
+} from '../utils/wallpaper';
 
 export default function SettingsModal({
   isOpen,
   onClose,
   settings,
   onUpdateSettings,
-  onResetAll,
-  onImportData,
-  onExportData,
 }) {
   const [activeTab, setActiveTab] = useState('wallpaper');
-  const [customWp, setCustomWp] = useState(settings.customWallpaperUrl || '');
-  const [importText, setImportText] = useState('');
-  const [importError, setImportError] = useState('');
-  const [importSuccess, setImportSuccess] = useState(false);
+  const [wpLibOpen, setWpLibOpen] = useState(false);
 
   if (!isOpen) return null;
 
+  const normalized = normalizeWallpaperSettings(settings);
+  const wp = normalized.wallpaper;
+
   const updateSetting = (key, value) => {
-    onUpdateSettings({ ...settings, [key]: value });
-  };
-
-  const handleCustomWpSubmit = (e) => {
-    e.preventDefault();
-    onUpdateSettings({ ...settings, customWallpaperUrl: customWp, selectedWallpaper: '' });
-  };
-
-  const handleImportSubmit = (e) => {
-    e.preventDefault();
-    try {
-      const parsed = JSON.parse(importText);
-      if (parsed.settings && parsed.shortcuts && parsed.categories) {
-        onImportData(parsed);
-        setImportSuccess(true);
-        setImportError('');
-        setTimeout(() => {
-          setImportSuccess(false);
-          onClose();
-        }, 1500);
-      } else {
-        setImportError('数据格式不正确，需包含 settings、shortcuts 和 categories');
-      }
-    } catch (err) {
-      setImportError('JSON 解析失败，请检查输入格式是否正确');
+    if (key === 'bgBlur') {
+      onUpdateSettings(updateWallpaperField(settings, { blur: value }));
+      return;
     }
+    if (key === 'bgBrightness') {
+      onUpdateSettings(updateWallpaperField(settings, { brightness: value }));
+      return;
+    }
+    onUpdateSettings({ ...settings, [key]: value });
   };
 
   return (
@@ -87,13 +73,6 @@ export default function SettingsModal({
               <Icons.ToggleLeft size={16} />
               <span>功能开关</span>
             </button>
-            <button
-              className={`tab-btn ${activeTab === 'data' ? 'active' : ''}`}
-              onClick={() => setActiveTab('data')}
-            >
-              <Icons.Database size={16} />
-              <span>数据备份</span>
-            </button>
           </div>
 
           {/* Tab Content */}
@@ -101,77 +80,116 @@ export default function SettingsModal({
             {/* WALLPAPER PANE */}
             {activeTab === 'wallpaper' && (
               <div className="pane-section animate-fade">
-                <h4>壁纸选择</h4>
-                <div className="wallpapers-grid">
-                  {DEFAULT_WALLPAPERS.map((wp) => {
-                    const isSelected = settings.selectedWallpaper === wp.id;
-                    const isSolidColor = wp.url.startsWith('#');
-                    return (
-                      <div
-                        key={wp.id}
-                        className={`wallpaper-tile ${isSelected ? 'selected' : ''}`}
-                        onClick={() => {
-                          onUpdateSettings({ ...settings, selectedWallpaper: wp.id, customWallpaperUrl: '' });
-                        }}
-                        style={{
-                          backgroundColor: isSolidColor ? wp.url : '#1e1e1e',
-                          backgroundImage: isSolidColor ? 'none' : `url(${wp.url})`,
-                        }}
-                      >
-                        <span className="wallpaper-name">{wp.name}</span>
-                        {isSelected && (
-                          <div className="selected-badge flex-center">
-                            <Icons.Check size={12} strokeWidth={3} />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
+                <h4>当前壁纸</h4>
+                <div className="wp-current-row">
+                  <div
+                    className="wp-current-preview"
+                    style={
+                      wp.type === 'color' || (wp.src || '').startsWith('#')
+                        ? { backgroundColor: wp.src }
+                        : {
+                            backgroundImage: `url(${wp.thumb || wp.src})`,
+                            backgroundColor: '#111',
+                          }
+                    }
+                  >
+                    {wp.type === 'video' && (
+                      <span className="wp-current-video">
+                        <Icons.Play size={14} /> 动态
+                      </span>
+                    )}
+                  </div>
+                  <div className="wp-current-meta">
+                    <div className="wp-current-title">{wp.title || '未命名壁纸'}</div>
+                    <div className="wp-current-source">
+                      来源：{wp.source || '—'}
+                      {wp.type === 'video' ? ' · 视频' : ''}
+                    </div>
+                    <div className="wp-current-actions">
+                      <button type="button" className="glass-btn" onClick={() => setWpLibOpen(true)}>
+                        <Icons.Images size={14} />
+                        更换壁纸
+                      </button>
+                      {wp.src && wp.type !== 'color' && !(wp.src || '').startsWith('data:') && (
+                        <a
+                          className="glass-btn"
+                          href={wp.src}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download
+                        >
+                          <Icons.Download size={14} />
+                          下载
+                        </a>
+                      )}
+                    </div>
+                  </div>
                 </div>
-
-                <h4 style={{ marginTop: '24px' }}>自定义壁纸 URL</h4>
-                <form onSubmit={handleCustomWpSubmit} className="custom-wp-form">
-                  <input
-                    type="text"
-                    value={customWp}
-                    onChange={(e) => setCustomWp(e.target.value)}
-                    placeholder="输入图片链接 (https://...)"
-                    className="glass-input custom-wp-input"
-                  />
-                  <button type="submit" className="glass-btn">应用</button>
-                </form>
 
                 <h4 style={{ marginTop: '24px' }}>视觉效果</h4>
                 <div className="setting-slider-group">
                   <div className="slider-item">
                     <div className="slider-label">
-                      <span>背景模糊</span>
-                      <span>{settings.bgBlur}px</span>
+                      <span>遮罩浓度</span>
+                      <span>{Math.round((wp.mask ?? 0.15) * 100)}%</span>
                     </div>
                     <input
                       type="range"
                       min="0"
-                      max="30"
-                      value={settings.bgBlur}
-                      onChange={(e) => updateSetting('bgBlur', parseInt(e.target.value))}
+                      max="80"
+                      value={Math.round((wp.mask ?? 0.15) * 100)}
+                      onChange={(e) =>
+                        onUpdateSettings(
+                          updateWallpaperField(settings, { mask: parseInt(e.target.value, 10) / 100 })
+                        )
+                      }
+                      className="setting-range"
+                    />
+                  </div>
+                  <div className="slider-item" style={{ marginTop: '14px' }}>
+                    <div className="slider-label">
+                      <span>背景模糊</span>
+                      <span>{wp.blur ?? settings.bgBlur}px</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0"
+                      max="40"
+                      value={wp.blur ?? settings.bgBlur ?? 0}
+                      onChange={(e) => updateSetting('bgBlur', parseInt(e.target.value, 10))}
                       className="setting-range"
                     />
                   </div>
                   <div className="slider-item" style={{ marginTop: '14px' }}>
                     <div className="slider-label">
                       <span>背景亮度</span>
-                      <span>{settings.bgBrightness}%</span>
+                      <span>{wp.brightness ?? settings.bgBrightness}%</span>
                     </div>
                     <input
                       type="range"
                       min="30"
                       max="100"
-                      value={settings.bgBrightness}
-                      onChange={(e) => updateSetting('bgBrightness', parseInt(e.target.value))}
+                      value={wp.brightness ?? settings.bgBrightness ?? 80}
+                      onChange={(e) => updateSetting('bgBrightness', parseInt(e.target.value, 10))}
                       className="setting-range"
                     />
                   </div>
                 </div>
+
+                {wp.source === 'bing' && (
+                  <label className="wp-auto-daily" style={{ marginTop: 20 }}>
+                    <input
+                      type="checkbox"
+                      checked={!!wp.autoDaily}
+                      onChange={(e) =>
+                        onUpdateSettings(
+                          updateWallpaperField(settings, { autoDaily: e.target.checked })
+                        )
+                      }
+                    />
+                    <span>自动使用必应每日壁纸（打开页面时刷新）</span>
+                  </label>
+                )}
               </div>
             )}
 
@@ -308,61 +326,99 @@ export default function SettingsModal({
               </div>
             )}
 
-            {/* DATA BACKUP PANE */}
-            {activeTab === 'data' && (
-              <div className="pane-section animate-fade">
-                <h4>数据导出</h4>
-                <p className="pane-tip">将当前配置（包含分类、自定义网站、设置项等）保存为 JSON 文本。</p>
-                <button
-                  className="glass-btn w-full"
-                  style={{ marginTop: '8px' }}
-                  onClick={() => {
-                    const data = onExportData();
-                    navigator.clipboard.writeText(JSON.stringify(data, null, 2));
-                    alert('配置已成功复制到剪贴板，您可以粘贴保存为 .json 文件！');
-                  }}
-                >
-                  <Icons.Copy size={14} /> 导出配置并复制
-                </button>
-
-                <h4 style={{ marginTop: '24px' }}>数据导入</h4>
-                <p className="pane-tip">粘贴您备份的配置 JSON 内容以恢复您的工作台。</p>
-                <form onSubmit={handleImportSubmit} className="import-form">
-                  <textarea
-                    value={importText}
-                    onChange={(e) => setImportText(e.target.value)}
-                    placeholder='粘贴备份 JSON...'
-                    className="glass-input import-textarea"
-                    rows={5}
-                  />
-                  {importError && <span className="error-text">{importError}</span>}
-                  {importSuccess && <span className="success-text">导入成功，配置已更新！</span>}
-                  <button type="submit" className="glass-btn w-full" style={{ marginTop: '8px' }}>
-                    <Icons.Upload size={14} /> 确认导入配置
-                  </button>
-                </form>
-
-                <h4 style={{ marginTop: '24px', color: '#ef4444' }}>重置选项</h4>
-                <p className="pane-tip">清空所有自定义数据，恢复系统初始状态（将清空自定义书签！）。</p>
-                <button
-                  className="glass-btn reset-danger-btn w-full"
-                  style={{ marginTop: '8px' }}
-                  onClick={() => {
-                    if (window.confirm('您确定要重置所有配置和自定义书签吗？该操作不可撤销！')) {
-                      onResetAll();
-                      onClose();
-                    }
-                  }}
-                >
-                  <Icons.AlertTriangle size={14} /> 重置所有配置
-                </button>
-              </div>
-            )}
           </div>
         </div>
       </div>
 
+      <WallpaperLibrary
+        isOpen={wpLibOpen}
+        onClose={() => setWpLibOpen(false)}
+        current={wp}
+        onSelect={(item) => onUpdateSettings(applyWallpaperSelection(settings, item))}
+        onApplyCustom={(url) =>
+          onUpdateSettings(
+            applyWallpaperSelection(settings, {
+              id: 'custom-url',
+              source: 'custom',
+              type: 'image',
+              src: url,
+              thumb: url,
+              title: '自定义 URL',
+            })
+          )
+        }
+      />
+
       <style>{`
+        .wp-current-row {
+          display: flex;
+          gap: 14px;
+          align-items: stretch;
+        }
+        .wp-current-preview {
+          width: 160px;
+          height: 90px;
+          border-radius: 10px;
+          background-size: cover;
+          background-position: center;
+          flex-shrink: 0;
+          border: 1px solid rgba(255,255,255,0.1);
+          position: relative;
+          overflow: hidden;
+        }
+        .wp-current-video {
+          position: absolute;
+          left: 8px;
+          bottom: 8px;
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 11px;
+          background: rgba(0,0,0,0.55);
+          color: #fff;
+          padding: 2px 8px;
+          border-radius: 999px;
+        }
+        .wp-current-meta {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+          min-width: 0;
+        }
+        .wp-current-title {
+          font-size: 14px;
+          font-weight: 600;
+          color: #fff;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+        }
+        .wp-current-source {
+          font-size: 12px;
+          color: rgba(255,255,255,0.45);
+        }
+        .wp-current-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          margin-top: auto;
+        }
+        .wp-current-actions .glass-btn {
+          text-decoration: none;
+          font-size: 12px;
+          padding: 6px 10px;
+        }
+        .wp-auto-daily {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          color: rgba(255,255,255,0.75);
+          cursor: pointer;
+        }
+        .wp-auto-daily input { accent-color: #3b82f6; }
+
         .drawer-overlay {
           position: fixed;
           top: 0;
@@ -478,73 +534,6 @@ export default function SettingsModal({
           margin-bottom: 12px;
           border-left: 3px solid #3b82f6;
           padding-left: 8px;
-        }
-
-        .pane-tip {
-          font-size: 11.5px;
-          color: rgba(255, 255, 255, 0.45);
-          line-height: 1.4;
-          margin-bottom: 6px;
-        }
-
-        /* Wallpapers Grid */
-        .wallpapers-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 12px;
-        }
-
-        .wallpaper-tile {
-          height: 72px;
-          border-radius: 8px;
-          background-size: cover;
-          background-position: center;
-          position: relative;
-          cursor: pointer;
-          border: 2px solid transparent;
-          overflow: hidden;
-          transition: border-color 0.2s;
-        }
-
-        .wallpaper-tile:hover {
-          border-color: rgba(255, 255, 255, 0.4);
-        }
-
-        .wallpaper-tile.selected {
-          border-color: #3b82f6;
-        }
-
-        .wallpaper-name {
-          position: absolute;
-          bottom: 0;
-          left: 0;
-          right: 0;
-          padding: 4px 6px;
-          background: rgba(0, 0, 0, 0.6);
-          color: white;
-          font-size: 10px;
-          text-align: center;
-        }
-
-        .selected-badge {
-          position: absolute;
-          top: 6px;
-          right: 6px;
-          width: 18px;
-          height: 18px;
-          background: #3b82f6;
-          color: white;
-          border-radius: 50%;
-        }
-
-        .custom-wp-form {
-          display: flex;
-          gap: 8px;
-        }
-
-        .custom-wp-input {
-          flex: 1;
-          height: 34px;
         }
 
         .setting-slider-group {
@@ -711,43 +700,6 @@ export default function SettingsModal({
 
         .toggle-switch.off .switch-handle {
           transform: translateX(0);
-        }
-
-        .w-full {
-          width: 100%;
-        }
-
-        .import-form {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
-
-        .import-textarea {
-          font-family: monospace;
-          font-size: 11px;
-          resize: vertical;
-        }
-
-        .error-text {
-          font-size: 11px;
-          color: #ef4444;
-        }
-
-        .success-text {
-          font-size: 11px;
-          color: #10b981;
-        }
-
-        .reset-danger-btn {
-          border-color: rgba(239, 68, 68, 0.3);
-          color: #fca5a5;
-        }
-
-        .reset-danger-btn:hover {
-          background: rgba(239, 68, 68, 0.2);
-          border-color: #ef4444;
-          color: white;
         }
 
         .animate-fade {
