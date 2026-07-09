@@ -7,17 +7,13 @@
     <meta name="color-scheme" content="dark" />
     <title>导航页</title>
     <meta name="description" content="一个高颜值、极简、无广告的卡片式导航页。" />
-    <!-- 仅 html/body 黑底防白闪；#root 保持透明，避免盖住壁纸层 -->
+    <!-- 首屏黑底防白闪；壁纸层在 React 里用 z-index:0 盖在 body 之上 -->
     <style>
       html, body {
         margin: 0;
         background: #000;
         color: #fff;
         min-height: 100%;
-      }
-      #root {
-        min-height: 100%;
-        background: transparent;
       }
     </style>
   </head>

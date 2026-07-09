@@ -59,6 +59,8 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
   const [categoryToEdit, setCategoryToEdit] = useState(null);
+  /** 已完成加载的壁纸 key；与当前 key 不同则显示 loading */
+  const [wallpaperLoadedKey, setWallpaperLoadedKey] = useState('');
 
   const applyConfig = useCallback((cfg) => {
     if (cfg.categories?.length) {
@@ -217,24 +219,26 @@ export default function App() {
   const brightness = activeWp.brightness ?? settings.bgBrightness ?? 80;
   const mask = activeWp.mask ?? 0.15;
   const filters = `blur(${blur}px) brightness(${brightness}%)`;
+  const isColorWp =
+    activeWp.type === 'color' || (activeWp.src || '').startsWith('#');
+  const isVideoWp = activeWp.type === 'video';
+  const wallpaperKey = `${activeWp.type || 'image'}:${activeWp.src || ''}`;
+  const wallpaperLoading =
+    !isColorWp && !!activeWp.src && wallpaperLoadedKey !== wallpaperKey;
 
-  const getWallpaperStyles = () => {
-    // 始终垫一层黑底，壁纸图/视频加载前不白屏
-    if (activeWp.type === 'video') {
-      return { filter: filters, backgroundColor: '#000' };
-    }
-    if (activeWp.type === 'color' || (activeWp.src || '').startsWith('#')) {
-      return {
-        backgroundColor: activeWp.src || '#000',
-        filter: filters,
-      };
-    }
-    return {
-      backgroundColor: '#000',
-      backgroundImage: activeWp.src ? `url(${activeWp.src})` : undefined,
-      filter: filters,
-    };
-  };
+  const markWallpaperReady = useCallback(() => {
+    setWallpaperLoadedKey(wallpaperKey);
+  }, [wallpaperKey]);
+
+  const handleWallpaperImgRef = useCallback(
+    (el) => {
+      // 缓存命中时 onLoad 可能已触发，用 complete 兜底
+      if (el?.complete && el.naturalWidth > 0) {
+        setWallpaperLoadedKey(wallpaperKey);
+      }
+    },
+    [wallpaperKey]
+  );
 
   const handleSaveCategory = (name, icon = 'Grid', id) => {
     if (id != null) {
@@ -415,22 +419,50 @@ export default function App() {
 
   return (
     <div className="app-container">
-      <div className="wallpaper-bg" style={getWallpaperStyles()}>
-        {activeWp.type === 'video' && activeWp.src && (
+      {/* z-index:0 黑底 + 媒体层；勿用负 z-index，会被 body 黑底盖住 */}
+      <div className="wallpaper-bg">
+        {isColorWp ? (
+          <div
+            className="wallpaper-color-fill"
+            style={{ backgroundColor: activeWp.src || '#000', filter: filters }}
+          />
+        ) : isVideoWp && activeWp.src ? (
           <video
+            key={wallpaperKey}
             className="wallpaper-video"
             src={activeWp.src}
             autoPlay
             muted
             loop
             playsInline
+            style={{ filter: filters }}
+            onLoadedData={markWallpaperReady}
+            onError={markWallpaperReady}
           />
-        )}
+        ) : activeWp.src ? (
+          <img
+            key={wallpaperKey}
+            ref={handleWallpaperImgRef}
+            className={`wallpaper-media${wallpaperLoading ? ' is-loading' : ' is-ready'}`}
+            src={activeWp.src}
+            alt=""
+            draggable={false}
+            style={{ filter: filters }}
+            onLoad={markWallpaperReady}
+            onError={markWallpaperReady}
+          />
+        ) : null}
       </div>
       <div
         className="wallpaper-overlay"
         style={{ background: `rgba(0, 0, 0, ${mask})` }}
       />
+      {wallpaperLoading && (
+        <div className="wallpaper-loading" aria-live="polite" aria-busy="true">
+          <div className="wallpaper-loading-spinner" />
+          <span className="wallpaper-loading-text">壁纸加载中</span>
+        </div>
+      )}
 
       <Sidebar
         categories={categories}
