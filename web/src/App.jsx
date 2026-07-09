@@ -26,6 +26,12 @@ import {
 import { findCommonCategoryId, nextCategoryCode, nextNumericId } from './utils/ids';
 import { shortcutMatchesQuery } from './utils/matchText';
 import {
+  getCategoryIds,
+  isAllCategory,
+  shortcutBelongsTo,
+  withCategoryIds,
+} from './utils/categories';
+import {
   applyWallpaperSelection,
   normalizeWallpaperSettings,
 } from './utils/wallpaper';
@@ -122,6 +128,22 @@ export default function App() {
   useEffect(() => {
     if (!isAdmin) setIsEditing(false);
   }, [isAdmin]);
+
+  // 浏览器标签标题与 meta description
+  useEffect(() => {
+    const t = (settings.siteTitle || '').trim() || DEFAULT_SETTINGS.siteTitle;
+    document.title = t;
+
+    const desc =
+      (settings.siteDescription || '').trim() || DEFAULT_SETTINGS.siteDescription;
+    let meta = document.querySelector('meta[name="description"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.setAttribute('name', 'description');
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute('content', desc);
+  }, [settings.siteTitle, settings.siteDescription]);
 
   const wallpaper = normalizeWallpaperSettings(settings).wallpaper;
 
@@ -238,43 +260,75 @@ export default function App() {
     const target = categories.find((c) => c.id === catId);
     if (target?.code === 'common') return;
 
-    if (window.confirm('删除该分类将会同时删除分类下的所有快捷方式，确定删除吗？')) {
-      setCategories(categories.filter((c) => c.id !== catId));
-      setShortcuts(shortcuts.filter((s) => s.categoryId !== catId));
-      setActiveCategoryId(findCommonCategoryId(categories.filter((c) => c.id !== catId)));
+    if (
+      window.confirm(
+        '确定删除该分类吗？导航不会被删除，只会从该分类中移除。'
+      )
+    ) {
+      const nextCats = categories.filter((c) => c.id !== catId);
+      setCategories(nextCats);
+      // 仅解除关联；无分类的导航仍在「全部」中
+      setShortcuts(
+        shortcuts.map((s) =>
+          withCategoryIds(
+            s,
+            getCategoryIds(s).filter((id) => id !== catId)
+          )
+        )
+      );
+      if (activeCategoryId === catId) {
+        setActiveCategoryId(findCommonCategoryId(nextCats));
+      }
     }
   };
 
   const handleSaveShortcut = (payload) => {
+    let categoryIds = Array.isArray(payload.categoryIds)
+      ? payload.categoryIds.map(Number).filter((n) => n > 0)
+      : [];
+    // 新建且未选分类：若当前在具体分类下则默认归入当前分类；「全部」下可为空
+    if (
+      !Array.isArray(payload.categoryIds) &&
+      !categoryIds.length &&
+      !payload.id &&
+      !isAllCategory(activeCategoryId)
+    ) {
+      categoryIds = [Number(activeCategoryId)];
+    }
+
     const exists = shortcuts.some((s) => s.id === payload.id);
     if (exists) {
       setShortcuts(
         shortcuts.map((s) =>
           s.id === payload.id
-            ? {
-                id: s.id,
-                categoryId: s.categoryId,
-                name: payload.name,
-                url: payload.url,
-                letter: payload.letter || '',
-                bgColor: payload.bgColor || '',
-                favicon: payload.favicon || '',
-              }
+            ? withCategoryIds(
+                {
+                  id: s.id,
+                  name: payload.name,
+                  url: payload.url,
+                  letter: payload.letter || '',
+                  bgColor: payload.bgColor || '',
+                  favicon: payload.favicon || '',
+                },
+                categoryIds
+              )
             : s
         )
       );
     } else {
       setShortcuts([
         ...shortcuts,
-        {
-          id: nextNumericId(shortcuts),
-          categoryId: activeCategoryId,
-          name: payload.name,
-          url: payload.url,
-          letter: payload.letter || '',
-          bgColor: payload.bgColor || '',
-          favicon: payload.favicon || '',
-        },
+        withCategoryIds(
+          {
+            id: nextNumericId(shortcuts),
+            name: payload.name,
+            url: payload.url,
+            letter: payload.letter || '',
+            bgColor: payload.bgColor || '',
+            favicon: payload.favicon || '',
+          },
+          categoryIds
+        ),
       ]);
     }
     setShortcutToEdit(null);
@@ -296,6 +350,48 @@ export default function App() {
   const handleAddShortcutClick = () => {
     setShortcutToEdit(null);
     setIsEditShortcutOpen(true);
+  };
+
+  /** 侧边栏分类拖拽排序 */
+  const handleReorderCategories = (fromId, toId) => {
+    if (fromId === toId) return;
+    const list = [...categories];
+    const fromIdx = list.findIndex((c) => c.id === fromId);
+    const toIdx = list.findIndex((c) => c.id === toId);
+    if (fromIdx < 0 || toIdx < 0) return;
+    const [item] = list.splice(fromIdx, 1);
+    list.splice(toIdx, 0, item);
+    setCategories(list);
+  };
+
+  /** 导航内快捷方式拖拽排序（全部视图用全局顺序；分类视图调整全局中相对位置） */
+  const handleReorderShortcuts = (fromId, toId) => {
+    if (fromId === toId) return;
+    const visible = shortcuts.filter((s) => shortcutBelongsTo(s, activeCategoryId));
+    const fromIdx = visible.findIndex((s) => s.id === fromId);
+    const toIdx = visible.findIndex((s) => s.id === toId);
+    if (fromIdx < 0 || toIdx < 0) return;
+    const reordered = [...visible];
+    const [item] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, item);
+    const orderMap = new Map(reordered.map((s, i) => [s.id, i]));
+    const rest = shortcuts.filter((s) => !orderMap.has(s.id));
+    // 可见项按新顺序，其余保持相对顺序接在后面
+    setShortcuts([...reordered, ...rest]);
+  };
+
+  /** 将导航加入某分类（多对多，不移除原分类） */
+  const handleAssignShortcutToCategory = (shortcutId, categoryId) => {
+    const cid = Number(categoryId);
+    if (!cid) return;
+    setShortcuts(
+      shortcuts.map((s) => {
+        if (s.id !== shortcutId) return s;
+        const ids = getCategoryIds(s);
+        if (ids.includes(cid)) return s;
+        return withCategoryIds(s, [...ids, cid]);
+      })
+    );
   };
 
   const handleLogout = async () => {
@@ -343,6 +439,12 @@ export default function App() {
         onEditCategoryClick={handleEditCategoryClick}
         onDeleteCategory={handleDeleteCategory}
         isAdmin={isAdmin}
+        isEditing={isAdmin && isEditing}
+        onReorderCategories={handleReorderCategories}
+        onAssignShortcut={handleAssignShortcutToCategory}
+        logoText={settings.logoText}
+        logoBgColor={settings.logoBgColor}
+        logoBgColorEnd={settings.logoBgColorEnd}
       />
 
       <main className="main-content">
@@ -378,12 +480,13 @@ export default function App() {
             </>
           ) : (
             <button
-              className="glass-btn edit-toggle-btn"
+              className="glass-btn edit-toggle-btn icon-only-btn"
               onClick={() => setIsLoginOpen(true)}
               type="button"
+              title="设置"
+              aria-label="设置"
             >
-              <Icons.Lock size={14} />
-              <span>管理员</span>
+              <Icons.Settings size={16} />
             </button>
           )}
         </div>
@@ -406,7 +509,7 @@ export default function App() {
         <Dashboard
           shortcuts={shortcuts.filter(
             (s) =>
-              s.categoryId === activeCategoryId &&
+              shortcutBelongsTo(s, activeCategoryId) &&
               shortcutMatchesQuery(s, searchQuery)
           )}
           activeCategoryId={activeCategoryId}
@@ -416,6 +519,7 @@ export default function App() {
           onEditShortcut={handleEditShortcutClick}
           onUpdateShortcut={handleUpdateShortcut}
           onAddShortcutClick={handleAddShortcutClick}
+          onReorderShortcuts={handleReorderShortcuts}
           settings={settings}
         />
 
@@ -437,6 +541,14 @@ export default function App() {
           onClose={() => setIsEditShortcutOpen(false)}
           onSave={handleSaveShortcut}
           shortcutToEdit={shortcutToEdit}
+          categories={categories}
+          defaultCategoryIds={
+            !isAllCategory(activeCategoryId)
+              ? [Number(activeCategoryId)]
+              : findCommonCategoryId(categories) != null
+                ? [findCommonCategoryId(categories)]
+                : []
+          }
         />
       )}
 
@@ -476,6 +588,12 @@ export default function App() {
           font-size: 12px;
           padding: 0 12px;
           border-radius: 16px;
+        }
+
+        .edit-toggle-btn.icon-only-btn {
+          width: 32px;
+          padding: 0;
+          justify-content: center;
         }
 
         .edit-toggle-btn.active-editing {

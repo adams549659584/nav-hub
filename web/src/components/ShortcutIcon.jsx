@@ -21,11 +21,15 @@ export default function ShortcutIcon({
   onDelete,
   onEditClick,
   settings,
+  onDragOverShortcut,
+  onDropOnShortcut,
+  isDropTarget = false,
 }) {
   const [showMenu, setShowMenu] = useState(false);
   const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
   const [imageError, setImageError] = useState(false);
   const menuRef = useRef(null);
+  const didDragRef = useRef(false);
 
   // Handle outside clicks to close context menu
   useEffect(() => {
@@ -41,6 +45,11 @@ export default function ShortcutIcon({
   }, [showMenu]);
 
   const handleClick = (e) => {
+    if (didDragRef.current) {
+      didDragRef.current = false;
+      e.preventDefault();
+      return;
+    }
     if (showMenu) {
       setShowMenu(false);
       e.preventDefault();
@@ -85,11 +94,45 @@ export default function ShortcutIcon({
     }
   };
 
+  const handleDragStart = (e) => {
+    if (!isEditing) {
+      e.preventDefault();
+      return;
+    }
+    didDragRef.current = true;
+    e.dataTransfer.setData('application/x-shortcut-id', String(shortcut.id));
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(shortcut.id));
+  };
+
+  const handleDragOver = (e) => {
+    if (!isEditing) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    onDragOverShortcut?.(shortcut.id);
+  };
+
+  const handleDrop = (e) => {
+    if (!isEditing) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const fromId = Number(e.dataTransfer.getData('application/x-shortcut-id'));
+    if (fromId && fromId !== shortcut.id) {
+      onDropOnShortcut?.(fromId, shortcut.id);
+    }
+  };
+
   return (
     <div
-      className={`shortcut-item-wrapper ${isEditing ? 'wiggle' : ''} size-x-1 size-y-1`}
+      className={`shortcut-item-wrapper ${isEditing ? 'wiggle' : ''} size-x-1 size-y-1${
+        isDropTarget ? ' is-drop-target' : ''
+      }`}
       role="button"
       tabIndex={0}
+      draggable={!!isEditing}
+      onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
+      onDrop={handleDrop}
       onClick={handleClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
@@ -101,7 +144,7 @@ export default function ShortcutIcon({
       style={{
         gridColumn: 'span 1',
         gridRow: 'span 1',
-        cursor: 'pointer',
+        cursor: isEditing ? 'grab' : 'pointer',
       }}
     >
       {/* 1x1 Standard Shortcut layout */}
@@ -174,6 +217,20 @@ export default function ShortcutIcon({
 
         .shortcut-item-wrapper:hover:not(.wiggle) {
           transform: translateY(-4px);
+        }
+
+        .shortcut-item-wrapper.is-drop-target {
+          outline: 2px dashed rgba(59, 130, 246, 0.85);
+          outline-offset: 4px;
+          border-radius: 12px;
+        }
+
+        .shortcut-item-wrapper.wiggle {
+          cursor: grab;
+        }
+
+        .shortcut-item-wrapper.wiggle:active {
+          cursor: grabbing;
         }
 
         .shortcut-item-wrapper * {

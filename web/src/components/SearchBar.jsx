@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import * as Icons from 'lucide-react';
 import { SEARCH_ENGINES } from '../utils/defaultData';
 import { shortcutMatchesQuery } from '../utils/matchText';
+import { shortcutBelongsTo } from '../utils/categories';
 
 export default function SearchBar({
   currentEngineId,
@@ -27,7 +28,7 @@ export default function SearchBar({
     () =>
       query && query.trim()
         ? shortcuts.filter(
-            (s) => s.categoryId === activeCategoryId && shortcutMatchesQuery(s, query)
+            (s) => shortcutBelongsTo(s, activeCategoryId) && shortcutMatchesQuery(s, query)
           )
         : [],
     [query, shortcuts, activeCategoryId]
@@ -489,6 +490,28 @@ export default function SearchBar({
           border-radius: 16px;
           z-index: 35;
           animation: slideDown 0.2s ease;
+          max-height: min(360px, 50vh);
+          overflow-y: auto;
+          overflow-x: hidden;
+          overscroll-behavior: contain;
+          /* 滚动条出现时两侧预留，避免高亮项看起来右侧重、左轻 */
+          scrollbar-gutter: stable both-edges;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+          box-sizing: border-box;
+        }
+
+        .suggestions-list::-webkit-scrollbar {
+          width: 6px;
+        }
+
+        .suggestions-list::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.25);
+          border-radius: 999px;
+        }
+
+        .suggestions-list::-webkit-scrollbar-track {
+          background: transparent;
         }
 
         @keyframes slideDown {
@@ -503,13 +526,15 @@ export default function SearchBar({
           background: none;
           border: none;
           width: 100%;
-          padding: 10px 14px;
+          box-sizing: border-box;
+          padding: 10px 12px;
           color: rgba(255, 255, 255, 0.85);
           text-align: left;
           font-size: 13.5px;
           cursor: pointer;
           border-radius: 10px;
           transition: background-color 0.15s;
+          flex-shrink: 0;
         }
 
         .suggestion-item:hover,

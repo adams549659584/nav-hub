@@ -14,7 +14,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const schemaVersion = 2
+const schemaVersion = 3
 
 type DB struct {
 	sql *sql.DB
@@ -31,7 +31,6 @@ func Open(dsn string) (*DB, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Enforce FK for this connection (modernc respects pragma via DSN; also set explicitly).
 	if _, err := db.Exec(`PRAGMA foreign_keys = ON`); err != nil {
 		db.Close()
 		return nil, err
@@ -76,35 +75,55 @@ func (d *DB) migrate() error {
 		return err
 	}
 
-	// Fresh DB or unknown: ensure v2 tables exist.
 	if ver == 0 {
-		// Detect legacy v1 (categories.id TEXT, no code column).
-		if has, _ := d.tableExists("categories"); has {
-			if cols, _ := d.tableColumns("categories"); !contains(cols, "code") {
+		hasCats, _ := d.tableExists("categories")
+		if hasCats {
+			cols, _ := d.tableColumns("categories")
+			if !contains(cols, "code") {
+				// v1 TEXT ids
 				if err := d.migrateV1ToV2(); err != nil {
 					return fmt.Errorf("migrate v1→v2: %w", err)
 				}
-				return d.setSchemaVersion(schemaVersion)
+				ver = 2
+			} else {
+				// v2 integer + category_id on shortcuts, or already v3
+				scCols, _ := d.tableColumns("shortcuts")
+				if contains(scCols, "category_id") {
+					ver = 2
+				} else {
+					hasJC, _ := d.tableExists("shortcut_categories")
+					if hasJC {
+						ver = 3
+					} else {
+						ver = 2
+					}
+				}
 			}
-		}
-		if err := d.createV2Schema(); err != nil {
-			return err
-		}
-		return d.setSchemaVersion(schemaVersion)
-	}
-
-	if ver < schemaVersion {
-		// Future stepwise migrations go here.
-		if ver == 1 {
-			if err := d.migrateV1ToV2(); err != nil {
+		} else {
+			if err := d.createV3Schema(); err != nil {
 				return err
 			}
+			return d.setSchemaVersion(schemaVersion)
 		}
-		return d.setSchemaVersion(schemaVersion)
 	}
 
-	// Already at current version: ensure tables (CREATE IF NOT EXISTS).
-	return d.createV2Schema()
+	if ver == 1 {
+		if err := d.migrateV1ToV2(); err != nil {
+			return fmt.Errorf("migrate v1→v2: %w", err)
+		}
+		ver = 2
+	}
+	if ver == 2 {
+		if err := d.migrateV2ToV3(); err != nil {
+			return fmt.Errorf("migrate v2→v3: %w", err)
+		}
+		ver = 3
+	}
+
+	if err := d.createV3Schema(); err != nil {
+		return err
+	}
+	return d.setSchemaVersion(schemaVersion)
 }
 
 func (d *DB) getSchemaVersion() (int, error) {
@@ -114,7 +133,6 @@ func (d *DB) getSchemaVersion() (int, error) {
 		return 0, nil
 	}
 	if err != nil {
-		// schema_meta may not exist yet on very old DBs
 		if strings.Contains(err.Error(), "no such table") {
 			return 0, nil
 		}
@@ -133,7 +151,7 @@ func (d *DB) setSchemaVersion(v int) error {
 	return err
 }
 
-func (d *DB) createV2Schema() error {
+func (d *DB) createV3Schema() error {
 	stmts := []string{
 		`CREATE TABLE IF NOT EXISTS categories (
 			id INTEGER PRIMARY KEY,
@@ -144,13 +162,19 @@ func (d *DB) createV2Schema() error {
 		)`,
 		`CREATE TABLE IF NOT EXISTS shortcuts (
 			id INTEGER PRIMARY KEY,
-			category_id INTEGER NOT NULL,
 			name TEXT NOT NULL,
 			url TEXT NOT NULL,
 			letter TEXT NOT NULL DEFAULT '',
-			bg_color TEXT NOT NULL DEFAULT '#3b82f6',
+			bg_color TEXT NOT NULL DEFAULT '',
 			favicon TEXT NOT NULL DEFAULT '',
+			sort_order INTEGER NOT NULL DEFAULT 0
+		)`,
+		`CREATE TABLE IF NOT EXISTS shortcut_categories (
+			shortcut_id INTEGER NOT NULL,
+			category_id INTEGER NOT NULL,
 			sort_order INTEGER NOT NULL DEFAULT 0,
+			PRIMARY KEY (shortcut_id, category_id),
+			FOREIGN KEY (shortcut_id) REFERENCES shortcuts(id) ON DELETE CASCADE,
 			FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
 		)`,
 		`CREATE TABLE IF NOT EXISTS settings (
@@ -162,7 +186,8 @@ func (d *DB) createV2Schema() error {
 			username TEXT NOT NULL UNIQUE,
 			password_hash TEXT NOT NULL
 		)`,
-		`CREATE INDEX IF NOT EXISTS idx_shortcuts_category ON shortcuts(category_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_sc_category ON shortcut_categories(category_id)`,
+		`CREATE INDEX IF NOT EXISTS idx_sc_shortcut ON shortcut_categories(shortcut_id)`,
 	}
 	for _, s := range stmts {
 		if _, err := d.sql.Exec(s); err != nil {
@@ -172,69 +197,69 @@ func (d *DB) createV2Schema() error {
 	return nil
 }
 
-// migrateV1ToV2 converts TEXT id + JSON payload schema to integer ids + columns.
-func (d *DB) migrateV1ToV2() error {
+// migrateV2ToV3: category_id column → shortcut_categories M2M.
+func (d *DB) migrateV2ToV3() error {
+	// Already v3?
+	if has, _ := d.tableExists("shortcut_categories"); has {
+		cols, _ := d.tableColumns("shortcuts")
+		if !contains(cols, "category_id") {
+			return nil
+		}
+	}
+
 	tx, err := d.sql.Begin()
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+	_, _ = tx.Exec(`PRAGMA foreign_keys = OFF`)
 
-	if _, err := tx.Exec(`PRAGMA foreign_keys = OFF`); err != nil {
+	type cat struct {
+		ID, Sort       int64
+		Code, Name, Icon string
+	}
+	var cats []cat
+	rows, err := tx.Query(`SELECT id, code, name, icon, sort_order FROM categories ORDER BY sort_order, id`)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var c cat
+		if err := rows.Scan(&c.ID, &c.Code, &c.Name, &c.Icon, &c.Sort); err != nil {
+			rows.Close()
+			return err
+		}
+		cats = append(cats, c)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
 		return err
 	}
 
-	// Read legacy categories
-	type legacyCat struct {
-		ID   string
-		Name string
-		Icon string
-		Sort int
+	type sc struct {
+		ID, CatID, Sort int64
+		Name, URL, Letter, Bg, Fav string
 	}
-	var cats []legacyCat
-	rows, err := tx.Query(`SELECT id, name, icon, sort_order FROM categories ORDER BY sort_order, id`)
-	if err == nil {
-		for rows.Next() {
-			var c legacyCat
-			if err := rows.Scan(&c.ID, &c.Name, &c.Icon, &c.Sort); err != nil {
-				rows.Close()
-				return err
-			}
-			cats = append(cats, c)
-		}
-		err = rows.Err()
-		rows.Close()
-		if err != nil {
+	var scs []sc
+	// v2 has category_id
+	rows, err = tx.Query(`SELECT id, category_id, name, url, letter, bg_color, favicon, sort_order FROM shortcuts ORDER BY sort_order, id`)
+	if err != nil {
+		return err
+	}
+	for rows.Next() {
+		var s sc
+		if err := rows.Scan(&s.ID, &s.CatID, &s.Name, &s.URL, &s.Letter, &s.Bg, &s.Fav, &s.Sort); err != nil {
+			rows.Close()
 			return err
 		}
+		scs = append(scs, s)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
 	}
 
-	// Read legacy shortcuts (payload JSON)
-	type legacySC struct {
-		ID         string
-		CategoryID string
-		Payload    string
-	}
-	var scs []legacySC
-	rows, err = tx.Query(`SELECT id, category_id, payload FROM shortcuts`)
-	if err == nil {
-		for rows.Next() {
-			var s legacySC
-			if err := rows.Scan(&s.ID, &s.CategoryID, &s.Payload); err != nil {
-				rows.Close()
-				return err
-			}
-			scs = append(scs, s)
-		}
-		err = rows.Err()
-		rows.Close()
-		if err != nil {
-			return err
-		}
-	}
-
-	// Drop old tables and recreate v2
-	for _, t := range []string{"shortcuts", "categories"} {
+	for _, t := range []string{"shortcut_categories", "shortcuts", "categories"} {
 		if _, err := tx.Exec(`DROP TABLE IF EXISTS ` + t); err != nil {
 			return err
 		}
@@ -250,23 +275,136 @@ func (d *DB) migrateV1ToV2() error {
 		)`,
 		`CREATE TABLE shortcuts (
 			id INTEGER PRIMARY KEY,
-			category_id INTEGER NOT NULL,
 			name TEXT NOT NULL,
 			url TEXT NOT NULL,
 			letter TEXT NOT NULL DEFAULT '',
-			bg_color TEXT NOT NULL DEFAULT '#3b82f6',
+			bg_color TEXT NOT NULL DEFAULT '',
 			favicon TEXT NOT NULL DEFAULT '',
+			sort_order INTEGER NOT NULL DEFAULT 0
+		)`,
+		`CREATE TABLE shortcut_categories (
+			shortcut_id INTEGER NOT NULL,
+			category_id INTEGER NOT NULL,
 			sort_order INTEGER NOT NULL DEFAULT 0,
+			PRIMARY KEY (shortcut_id, category_id),
+			FOREIGN KEY (shortcut_id) REFERENCES shortcuts(id) ON DELETE CASCADE,
 			FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
 		)`,
-		`CREATE INDEX IF NOT EXISTS idx_shortcuts_category ON shortcuts(category_id)`,
+		`CREATE INDEX idx_sc_category ON shortcut_categories(category_id)`,
 	} {
 		if _, err := tx.Exec(s); err != nil {
 			return err
 		}
 	}
 
-	codeToID := make(map[string]int64, len(cats))
+	for i, c := range cats {
+		if _, err := tx.Exec(
+			`INSERT INTO categories (id, code, name, icon, sort_order) VALUES (?, ?, ?, ?, ?)`,
+			c.ID, c.Code, c.Name, c.Icon, i,
+		); err != nil {
+			return err
+		}
+	}
+
+	// per-category order counters
+	catOrder := map[int64]int{}
+	for i, s := range scs {
+		if _, err := tx.Exec(
+			`INSERT INTO shortcuts (id, name, url, letter, bg_color, favicon, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			s.ID, s.Name, s.URL, s.Letter, s.Bg, s.Fav, i,
+		); err != nil {
+			return err
+		}
+		if s.CatID > 0 {
+			ord := catOrder[s.CatID]
+			catOrder[s.CatID] = ord + 1
+			if _, err := tx.Exec(
+				`INSERT INTO shortcut_categories (shortcut_id, category_id, sort_order) VALUES (?, ?, ?)`,
+				s.ID, s.CatID, ord,
+			); err != nil {
+				return err
+			}
+		}
+	}
+
+	_, _ = tx.Exec(`PRAGMA foreign_keys = ON`)
+	return tx.Commit()
+}
+
+// migrateV1ToV2 kept for old TEXT-id databases; produces intermediate v2 then v2→v3 follows.
+func (d *DB) migrateV1ToV2() error {
+	tx, err := d.sql.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	_, _ = tx.Exec(`PRAGMA foreign_keys = OFF`)
+
+	type legacyCat struct {
+		ID, Name, Icon string
+		Sort           int
+	}
+	var cats []legacyCat
+	rows, err := tx.Query(`SELECT id, name, icon, sort_order FROM categories ORDER BY sort_order, id`)
+	if err == nil {
+		for rows.Next() {
+			var c legacyCat
+			if err := rows.Scan(&c.ID, &c.Name, &c.Icon, &c.Sort); err != nil {
+				rows.Close()
+				return err
+			}
+			cats = append(cats, c)
+		}
+		rows.Close()
+	}
+
+	type legacySC struct {
+		ID, CategoryID, Payload string
+	}
+	var scs []legacySC
+	rows, err = tx.Query(`SELECT id, category_id, payload FROM shortcuts`)
+	if err == nil {
+		for rows.Next() {
+			var s legacySC
+			if err := rows.Scan(&s.ID, &s.CategoryID, &s.Payload); err != nil {
+				rows.Close()
+				return err
+			}
+			scs = append(scs, s)
+		}
+		rows.Close()
+	}
+
+	for _, t := range []string{"shortcuts", "categories"} {
+		if _, err := tx.Exec(`DROP TABLE IF EXISTS ` + t); err != nil {
+			return err
+		}
+	}
+	for _, s := range []string{
+		`CREATE TABLE categories (
+			id INTEGER PRIMARY KEY,
+			code TEXT NOT NULL UNIQUE,
+			name TEXT NOT NULL,
+			icon TEXT NOT NULL DEFAULT 'Grid',
+			sort_order INTEGER NOT NULL DEFAULT 0
+		)`,
+		`CREATE TABLE shortcuts (
+			id INTEGER PRIMARY KEY,
+			category_id INTEGER NOT NULL,
+			name TEXT NOT NULL,
+			url TEXT NOT NULL,
+			letter TEXT NOT NULL DEFAULT '',
+			bg_color TEXT NOT NULL DEFAULT '',
+			favicon TEXT NOT NULL DEFAULT '',
+			sort_order INTEGER NOT NULL DEFAULT 0
+		)`,
+	} {
+		if _, err := tx.Exec(s); err != nil {
+			return err
+		}
+	}
+
+	codeToID := map[string]int64{}
 	for i, c := range cats {
 		id := int64(i + 1)
 		code := c.ID
@@ -300,7 +438,7 @@ func (d *DB) migrateV1ToV2() error {
 		}
 		catID, ok := codeToID[catCode]
 		if !ok {
-			continue // orphan
+			continue
 		}
 		name, _ := m["name"].(string)
 		url, _ := m["url"].(string)
@@ -309,9 +447,6 @@ func (d *DB) migrateV1ToV2() error {
 		}
 		letter, _ := m["letter"].(string)
 		bg, _ := m["bgColor"].(string)
-		if bg == "" {
-			bg = "#3b82f6"
-		}
 		favicon, _ := m["favicon"].(string)
 		if _, err := tx.Exec(
 			`INSERT INTO shortcuts (id, category_id, name, url, letter, bg_color, favicon, sort_order)
@@ -322,9 +457,7 @@ func (d *DB) migrateV1ToV2() error {
 		}
 	}
 
-	if _, err := tx.Exec(`PRAGMA foreign_keys = ON`); err != nil {
-		return err
-	}
+	_, _ = tx.Exec(`PRAGMA foreign_keys = ON`)
 	return tx.Commit()
 }
 
@@ -344,9 +477,8 @@ func (d *DB) tableColumns(table string) ([]string, error) {
 	defer rows.Close()
 	var cols []string
 	for rows.Next() {
-		var cid int
+		var cid, notnull, pk int
 		var name, ctype string
-		var notnull, pk int
 		var dflt sql.NullString
 		if err := rows.Scan(&cid, &name, &ctype, &notnull, &dflt, &pk); err != nil {
 			return nil, err
@@ -414,24 +546,50 @@ func (d *DB) loadCategories(ctx context.Context) ([]Category, error) {
 
 func (d *DB) loadShortcuts(ctx context.Context) ([]Shortcut, error) {
 	rows, err := d.sql.QueryContext(ctx,
-		`SELECT id, category_id, name, url, letter, bg_color, favicon
-		 FROM shortcuts ORDER BY sort_order, id`)
+		`SELECT id, name, url, letter, bg_color, favicon FROM shortcuts ORDER BY sort_order, id`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
+
 	var out []Shortcut
 	for rows.Next() {
 		var s Shortcut
-		if err := rows.Scan(&s.ID, &s.CategoryID, &s.Name, &s.URL, &s.Letter, &s.BgColor, &s.Favicon); err != nil {
+		if err := rows.Scan(&s.ID, &s.Name, &s.URL, &s.Letter, &s.BgColor, &s.Favicon); err != nil {
 			return nil, err
 		}
+		s.CategoryIDs = []int64{}
 		out = append(out, s)
 	}
-	if out == nil {
-		out = []Shortcut{}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
-	return out, rows.Err()
+	if out == nil {
+		return []Shortcut{}, nil
+	}
+
+	// load memberships
+	mrows, err := d.sql.QueryContext(ctx,
+		`SELECT shortcut_id, category_id FROM shortcut_categories ORDER BY shortcut_id, sort_order, category_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer mrows.Close()
+
+	byID := make(map[int64]*Shortcut, len(out))
+	for i := range out {
+		byID[out[i].ID] = &out[i]
+	}
+	for mrows.Next() {
+		var sid, cid int64
+		if err := mrows.Scan(&sid, &cid); err != nil {
+			return nil, err
+		}
+		if s, ok := byID[sid]; ok {
+			s.CategoryIDs = append(s.CategoryIDs, cid)
+		}
+	}
+	return out, mrows.Err()
 }
 
 func (d *DB) loadSettings(ctx context.Context) (map[string]any, error) {
@@ -457,8 +615,6 @@ func (d *DB) SaveConfig(ctx context.Context, cfg *SiteConfig) error {
 	if cfg.Settings == nil {
 		cfg.Settings = map[string]any{}
 	}
-
-	// Normalize: assign missing ids, ensure codes, validate.
 	if err := normalizeConfig(cfg); err != nil {
 		return err
 	}
@@ -469,6 +625,9 @@ func (d *DB) SaveConfig(ctx context.Context, cfg *SiteConfig) error {
 	}
 	defer tx.Rollback()
 
+	if _, err := tx.ExecContext(ctx, `DELETE FROM shortcut_categories`); err != nil {
+		return err
+	}
 	if _, err := tx.ExecContext(ctx, `DELETE FROM shortcuts`); err != nil {
 		return err
 	}
@@ -484,12 +643,23 @@ func (d *DB) SaveConfig(ctx context.Context, cfg *SiteConfig) error {
 		}
 	}
 
+	// track per-category sort for memberships
+	catOrd := map[int64]int{}
 	for i, s := range cfg.Shortcuts {
 		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO shortcuts (id, category_id, name, url, letter, bg_color, favicon, sort_order)
-			 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-			s.ID, s.CategoryID, s.Name, s.URL, s.Letter, s.BgColor, s.Favicon, i); err != nil {
+			`INSERT INTO shortcuts (id, name, url, letter, bg_color, favicon, sort_order)
+			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+			s.ID, s.Name, s.URL, s.Letter, s.BgColor, s.Favicon, i); err != nil {
 			return err
+		}
+		for _, cid := range s.CategoryIDs {
+			ord := catOrd[cid]
+			catOrd[cid] = ord + 1
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO shortcut_categories (shortcut_id, category_id, sort_order) VALUES (?, ?, ?)`,
+				s.ID, cid, ord); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -506,7 +676,6 @@ func (d *DB) SaveConfig(ctx context.Context, cfg *SiteConfig) error {
 	return tx.Commit()
 }
 
-// normalizeConfig fills ids/codes and validates foreign keys.
 func normalizeConfig(cfg *SiteConfig) error {
 	usedCatID := map[int64]bool{}
 	usedCode := map[string]bool{}
@@ -535,7 +704,6 @@ func normalizeConfig(cfg *SiteConfig) error {
 			return fmt.Errorf("duplicate category id %d", c.ID)
 		}
 		usedCatID[c.ID] = true
-
 		if c.Code == "" {
 			c.Code = fmt.Sprintf("cat-%d", c.ID)
 		}
@@ -557,9 +725,22 @@ func normalizeConfig(cfg *SiteConfig) error {
 		if s.Name == "" || s.URL == "" {
 			return fmt.Errorf("shortcut at index %d missing name or url", i)
 		}
-		if !usedCatID[s.CategoryID] {
-			return fmt.Errorf("shortcut %q references unknown categoryId %d", s.Name, s.CategoryID)
+		// normalize categoryIds; accept legacy single categoryId via JSON flexibility is frontend's job
+		if s.CategoryIDs == nil {
+			s.CategoryIDs = []int64{}
 		}
+		// dedupe + validate
+		seen := map[int64]bool{}
+		clean := make([]int64, 0, len(s.CategoryIDs))
+		for _, cid := range s.CategoryIDs {
+			if cid <= 0 || !usedCatID[cid] || seen[cid] {
+				continue
+			}
+			seen[cid] = true
+			clean = append(clean, cid)
+		}
+		s.CategoryIDs = clean
+		// 允许无分类：仅在「全部」中展示
 		if s.ID <= 0 {
 			for usedSC[nextSC] {
 				nextSC++
@@ -571,17 +752,42 @@ func normalizeConfig(cfg *SiteConfig) error {
 			return fmt.Errorf("duplicate shortcut id %d", s.ID)
 		}
 		usedSC[s.ID] = true
-		// bgColor 允许为空（透明背景，常用于自定义图标）
 	}
 	return nil
 }
 
 func (d *DB) SeedFromJSON(ctx context.Context, raw []byte) error {
-	var cfg SiteConfig
-	if err := json.Unmarshal(raw, &cfg); err != nil {
+	// Accept legacy categoryId in seed by flexible unmarshal
+	var wire struct {
+		Categories []Category       `json:"categories"`
+		Shortcuts  []json.RawMessage `json:"shortcuts"`
+		Settings   map[string]any   `json:"settings"`
+	}
+	if err := json.Unmarshal(raw, &wire); err != nil {
 		return err
 	}
-	return d.SaveConfig(ctx, &cfg)
+	cfg := &SiteConfig{
+		Categories: wire.Categories,
+		Settings:   wire.Settings,
+	}
+	for _, rawSC := range wire.Shortcuts {
+		var s Shortcut
+		if err := json.Unmarshal(rawSC, &s); err != nil {
+			return err
+		}
+		// legacy: categoryId number
+		if len(s.CategoryIDs) == 0 {
+			var legacy struct {
+				CategoryID int64 `json:"categoryId"`
+			}
+			_ = json.Unmarshal(rawSC, &legacy)
+			if legacy.CategoryID > 0 {
+				s.CategoryIDs = []int64{legacy.CategoryID}
+			}
+		}
+		cfg.Shortcuts = append(cfg.Shortcuts, s)
+	}
+	return d.SaveConfig(ctx, cfg)
 }
 
 func (d *DB) HasAdmin(ctx context.Context) (bool, error) {

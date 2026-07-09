@@ -132,10 +132,11 @@ nav-hub/
 | 实体 | 主键 | 说明 |
 |------|------|------|
 | categories | `id` INTEGER | `code` 稳定标识（如 `common`），`name` / `icon` / `sort_order` |
-| shortcuts | `id` INTEGER | 分列存储 `category_id`、`name`、`url`、`letter`、`bg_color`、`favicon`、`sort_order`（已去掉 JSON payload 与无用的 type/sizeX/sizeY/color） |
+| shortcuts | `id` INTEGER | `name` / `url` / `letter` / `bg_color` / `favicon` / `sort_order` |
+| shortcut_categories | `(shortcut_id, category_id)` | 多对多：一个导航可属多个分类；**无分类**的导航仅在侧栏「全部」中显示 |
 | settings | 单行 JSON | 全局 UI 偏好 |
 
-公开 API 仍返回 `{ categories, shortcuts, settings }`；前端字段为 camelCase（`categoryId`、`bgColor`）。
+公开 API 返回 `{ categories, shortcuts, settings }`；快捷方式字段为 `categoryIds: number[]`（可为空数组）、`bgColor` 等。侧栏顶部有「全部」；默认选中 `code === 'common'` 的常用推荐。
 
 ## 使用注意
 

@@ -1,21 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import * as Icons from 'lucide-react';
 import ShortcutIcon from './ShortcutIcon';
 
 export default function Dashboard({
   shortcuts,
-  activeCategoryId,
   isEditing,
   isAdmin = false,
   onDeleteShortcut,
   onEditShortcut,
   onUpdateShortcut,
   onAddShortcutClick,
+  onReorderShortcuts,
   settings,
 }) {
-  const filteredShortcuts = shortcuts.filter(
-    (s) => s.categoryId === activeCategoryId
-  );
+  // App 已按当前分类过滤，这里不再二次 filter
+  const list = shortcuts;
+  const [dropTargetId, setDropTargetId] = useState(null);
 
   const getRowHeight = () => {
     switch (settings.iconSize) {
@@ -25,9 +25,13 @@ export default function Dashboard({
     }
   };
 
+  const handleDropOnShortcut = (fromId, toId) => {
+    setDropTargetId(null);
+    onReorderShortcuts?.(fromId, toId);
+  };
+
   return (
     <div className="dashboard-container">
-      {/* Shortcuts Grid Area */}
       <div
         className="shortcuts-area"
         style={{
@@ -37,7 +41,6 @@ export default function Dashboard({
           marginRight: 'auto',
         }}
       >
-        {/* Shortcuts Grid */}
         <div
           className="shortcuts-grid"
           style={{
@@ -45,8 +48,9 @@ export default function Dashboard({
             gridAutoRows: `${getRowHeight()}px`,
             gap: `${settings.gap || 24}px`,
           }}
+          onDragLeave={() => setDropTargetId(null)}
         >
-          {filteredShortcuts.map((shortcut) => (
+          {list.map((shortcut) => (
             <ShortcutIcon
               key={shortcut.id}
               shortcut={shortcut}
@@ -55,10 +59,12 @@ export default function Dashboard({
               onEditClick={onEditShortcut}
               onUpdate={onUpdateShortcut}
               settings={settings}
+              isDropTarget={isEditing && dropTargetId === shortcut.id}
+              onDragOverShortcut={(id) => isEditing && setDropTargetId(id)}
+              onDropOnShortcut={handleDropOnShortcut}
             />
           ))}
 
-          {/* 仅管理员可见：添加快捷方式 */}
           {isAdmin && (
             <div
               className="add-shortcut-tile-wrapper"
@@ -157,16 +163,10 @@ export default function Dashboard({
           white-space: nowrap;
         }
 
-
         @media (max-width: 960px) {
           .dashboard-container {
             flex-direction: column;
             align-items: center;
-          }
-
-          .widgets-sidebar {
-            width: 100%;
-            max-width: 560px;
           }
 
           .shortcuts-area {

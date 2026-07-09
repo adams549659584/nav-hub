@@ -60,6 +60,13 @@ export default function SettingsModal({
               <span>壁纸设置</span>
             </button>
             <button
+              className={`tab-btn ${activeTab === 'site' ? 'active' : ''}`}
+              onClick={() => setActiveTab('site')}
+            >
+              <Icons.Sparkles size={16} />
+              <span>站点品牌</span>
+            </button>
+            <button
               className={`tab-btn ${activeTab === 'layout' ? 'active' : ''}`}
               onClick={() => setActiveTab('layout')}
             >
@@ -190,6 +197,102 @@ export default function SettingsModal({
                     <span>自动使用必应每日壁纸（打开页面时刷新）</span>
                   </label>
                 )}
+              </div>
+            )}
+
+            {/* SITE / BRAND PANE */}
+            {activeTab === 'site' && (
+              <div className="pane-section animate-fade">
+                <h4>页面标签标题</h4>
+                <p className="site-field-hint">浏览器标签页上显示的文字</p>
+                <input
+                  type="text"
+                  className="glass-input"
+                  value={settings.siteTitle ?? ''}
+                  maxLength={40}
+                  placeholder="导航页"
+                  onChange={(e) => updateSetting('siteTitle', e.target.value)}
+                />
+
+                <h4 style={{ marginTop: 22 }}>页面描述</h4>
+                <p className="site-field-hint">用于 SEO / 分享预览的 meta description</p>
+                <textarea
+                  className="glass-input site-description-input"
+                  value={settings.siteDescription ?? ''}
+                  maxLength={160}
+                  rows={3}
+                  placeholder="一个高颜值、极简、无广告的卡片式导航页。"
+                  onChange={(e) => updateSetting('siteDescription', e.target.value)}
+                />
+
+                <h4 style={{ marginTop: 22 }}>侧栏 Logo 文字</h4>
+                <p className="site-field-hint">左上角圆形标识内的文字（建议 1～3 个字符）</p>
+                <div className="site-logo-row">
+                  <input
+                    type="text"
+                    className="glass-input site-logo-text-input"
+                    value={settings.logoText ?? ''}
+                    maxLength={4}
+                    placeholder="iT"
+                    onChange={(e) => updateSetting('logoText', e.target.value)}
+                  />
+                  <div
+                    className="site-logo-preview"
+                    style={{
+                      background: `linear-gradient(135deg, ${
+                        settings.logoBgColor || '#4f46e5'
+                      }, ${settings.logoBgColorEnd || settings.logoBgColor || '#ec4899'})`,
+                    }}
+                    title="预览"
+                  >
+                    {(settings.logoText || 'iT').slice(0, 4)}
+                  </div>
+                </div>
+
+                <h4 style={{ marginTop: 22 }}>侧栏 Logo 背景色</h4>
+                <p className="site-field-hint">渐变起止色，可设为相同得到纯色</p>
+                <div className="site-color-row">
+                  <label className="site-color-field">
+                    <span>起始色</span>
+                    <input
+                      type="color"
+                      value={settings.logoBgColor || '#4f46e5'}
+                      onChange={(e) => updateSetting('logoBgColor', e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      className="glass-input site-color-hex"
+                      value={settings.logoBgColor || '#4f46e5'}
+                      maxLength={7}
+                      onChange={(e) => {
+                        const v = e.target.value.trim();
+                        if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v) || v === '') {
+                          updateSetting('logoBgColor', v || '#4f46e5');
+                        } else {
+                          updateSetting('logoBgColor', v);
+                        }
+                      }}
+                    />
+                  </label>
+                  <label className="site-color-field">
+                    <span>结束色</span>
+                    <input
+                      type="color"
+                      value={settings.logoBgColorEnd || settings.logoBgColor || '#ec4899'}
+                      onChange={(e) => updateSetting('logoBgColorEnd', e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      className="glass-input site-color-hex"
+                      value={settings.logoBgColorEnd || settings.logoBgColor || '#ec4899'}
+                      maxLength={7}
+                      onChange={(e) => {
+                        const v = e.target.value.trim();
+                        updateSetting('logoBgColorEnd', v);
+                      }}
+                    />
+                  </label>
+                </div>
               </div>
             )}
 
@@ -418,6 +521,78 @@ export default function SettingsModal({
           cursor: pointer;
         }
         .wp-auto-daily input { accent-color: #3b82f6; }
+
+        .site-field-hint {
+          margin: -6px 0 10px;
+          font-size: 11.5px;
+          color: rgba(255, 255, 255, 0.4);
+        }
+
+        .site-logo-row {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+
+        .site-logo-text-input {
+          flex: 1;
+          max-width: 160px;
+        }
+
+        .site-logo-preview {
+          width: 44px;
+          height: 44px;
+          border-radius: 12px;
+          color: #fff;
+          font-weight: 700;
+          font-size: 15px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+          overflow: hidden;
+          white-space: nowrap;
+          padding: 0 2px;
+        }
+
+        .site-color-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 16px;
+        }
+
+        .site-color-field {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.65);
+        }
+
+        .site-color-field input[type='color'] {
+          width: 36px;
+          height: 28px;
+          padding: 0;
+          border: 1px solid rgba(255, 255, 255, 0.15);
+          border-radius: 6px;
+          background: none;
+          cursor: pointer;
+        }
+
+        .site-color-hex {
+          width: 96px;
+          font-size: 12px;
+          font-family: ui-monospace, monospace;
+        }
+
+        .site-description-input {
+          width: 100%;
+          resize: vertical;
+          min-height: 72px;
+          line-height: 1.45;
+          font-family: inherit;
+        }
 
         .drawer-overlay {
           position: fixed;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as Icons from 'lucide-react';
+import { getCategoryIds } from '../utils/categories';
 
 const PRESET_COLORS = [
   '#3b82f6', // Blue
@@ -18,6 +19,8 @@ export default function EditShortcutModal({
   onClose,
   onSave,
   shortcutToEdit,
+  categories = [],
+  defaultCategoryIds = [],
 }) {
   const [url, setUrl] = useState('');
   const [name, setName] = useState('');
@@ -25,22 +28,30 @@ export default function EditShortcutModal({
   // 空字符串 = 透明背景
   const [bgColor, setBgColor] = useState('');
   const [favicon, setFavicon] = useState('');
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
+    if (!isOpen) return;
     if (shortcutToEdit) {
       setUrl(shortcutToEdit.url || '');
       setName(shortcutToEdit.name || '');
       setLetter(shortcutToEdit.letter || '');
       setBgColor(shortcutToEdit.bgColor || '');
       setFavicon(shortcutToEdit.favicon || '');
+      setSelectedCategoryIds(getCategoryIds(shortcutToEdit));
     } else {
       setUrl('');
       setName('');
       setLetter('');
       setBgColor('');
       setFavicon('');
+      setSelectedCategoryIds(
+        (defaultCategoryIds || []).map(Number).filter((n) => n > 0)
+      );
     }
+    // 仅在打开/切换编辑对象时初始化，避免 defaultCategoryIds 引用变化重置表单
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shortcutToEdit, isOpen]);
 
   // Autocomplete letter from name
@@ -110,10 +121,19 @@ export default function EditShortcutModal({
         : (letter.trim() || name.trim().charAt(0)).toUpperCase(),
       bgColor: bgColor || '',
       favicon: favicon.trim(),
+      // 允许为空：无分类仅在「全部」中显示
+      categoryIds: selectedCategoryIds.map(Number).filter((n) => n > 0),
     };
 
     onSave(payload);
     onClose();
+  };
+
+  const toggleCategory = (catId) => {
+    const id = Number(catId);
+    setSelectedCategoryIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   };
 
   const isTransparent = !bgColor;
@@ -265,6 +285,33 @@ export default function EditShortcutModal({
             </div>
           </div>
 
+          {categories.length > 0 && (
+            <div className="form-group">
+              <label>
+                所属分类
+                <span className="label-hint">可多选；不选则仅在「全部」中显示</span>
+              </label>
+              <div className="category-check-grid">
+                {categories.map((cat) => {
+                  const checked = selectedCategoryIds.includes(Number(cat.id));
+                  return (
+                    <label
+                      key={cat.id}
+                      className={`category-check-item${checked ? ' checked' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleCategory(cat.id)}
+                      />
+                      <span>{cat.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="form-group">
             <label>
               背景颜色
@@ -373,6 +420,37 @@ export default function EditShortcutModal({
           font-size: 10px;
           color: rgba(255, 255, 255, 0.35);
           font-weight: 400;
+        }
+
+        .category-check-grid {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .category-check-item {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 10px;
+          border-radius: 8px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.04);
+          color: rgba(255, 255, 255, 0.75);
+          font-size: 12px;
+          cursor: pointer;
+          user-select: none;
+        }
+
+        .category-check-item.checked {
+          border-color: rgba(59, 130, 246, 0.55);
+          background: rgba(59, 130, 246, 0.2);
+          color: #fff;
+        }
+
+        .category-check-item input {
+          accent-color: #3b82f6;
+          margin: 0;
         }
 
         .form-group-row {

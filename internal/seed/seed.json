@@ -34,235 +34,293 @@
   "shortcuts": [
     {
       "id": 1,
-      "categoryId": 1,
       "name": "哔哩哔哩",
       "url": "https://www.bilibili.com",
       "letter": "B",
-      "bgColor": "#e33e6f"
+      "bgColor": "#e33e6f",
+      "categoryIds": [
+        1
+      ]
     },
     {
       "id": 2,
-      "categoryId": 1,
       "name": "GitHub",
       "url": "https://github.com",
       "letter": "G",
-      "bgColor": "#181717"
+      "bgColor": "#181717",
+      "categoryIds": [
+        1
+      ]
     },
     {
       "id": 3,
-      "categoryId": 1,
       "name": "百度",
       "url": "https://www.baidu.com",
       "letter": "度",
-      "bgColor": "#2319dc"
+      "bgColor": "#2319dc",
+      "categoryIds": [
+        1
+      ]
     },
     {
       "id": 4,
-      "categoryId": 1,
       "name": "知乎",
       "url": "https://www.zhihu.com",
       "letter": "知",
-      "bgColor": "#0084ff"
+      "bgColor": "#0084ff",
+      "categoryIds": [
+        1
+      ]
     },
     {
       "id": 5,
-      "categoryId": 1,
       "name": "ChatGPT",
       "url": "https://chatgpt.com",
       "letter": "AI",
-      "bgColor": "#10a37f"
+      "bgColor": "#10a37f",
+      "categoryIds": [
+        1
+      ]
     },
     {
       "id": 6,
-      "categoryId": 1,
       "name": "YouTube",
       "url": "https://www.youtube.com",
       "letter": "Y",
-      "bgColor": "#ff0000"
+      "bgColor": "#ff0000",
+      "categoryIds": [
+        1
+      ]
     },
     {
       "id": 7,
-      "categoryId": 1,
       "name": "微博",
       "url": "https://weibo.com",
       "letter": "博",
-      "bgColor": "#e6162d"
+      "bgColor": "#e6162d",
+      "categoryIds": [
+        1
+      ]
     },
     {
       "id": 8,
-      "categoryId": 1,
       "name": "豆瓣",
       "url": "https://www.douban.com",
       "letter": "豆",
-      "bgColor": "#00b51e"
+      "bgColor": "#00b51e",
+      "categoryIds": [
+        1
+      ]
     },
     {
       "id": 9,
-      "categoryId": 2,
       "name": "Figma",
       "url": "https://www.figma.com",
       "letter": "F",
-      "bgColor": "#f24e1e"
+      "bgColor": "#f24e1e",
+      "categoryIds": [
+        2
+      ]
     },
     {
       "id": 10,
-      "categoryId": 2,
       "name": "Dribbble",
       "url": "https://dribbble.com",
       "letter": "D",
-      "bgColor": "#ea4c89"
+      "bgColor": "#ea4c89",
+      "categoryIds": [
+        2
+      ]
     },
     {
       "id": 11,
-      "categoryId": 2,
       "name": "Behance",
       "url": "https://www.behance.net",
       "letter": "B",
-      "bgColor": "#0057ff"
+      "bgColor": "#0057ff",
+      "categoryIds": [
+        2
+      ]
     },
     {
       "id": 12,
-      "categoryId": 2,
       "name": "Unsplash",
       "url": "https://unsplash.com",
       "letter": "U",
-      "bgColor": "#000000"
+      "bgColor": "#000000",
+      "categoryIds": [
+        2
+      ]
     },
     {
       "id": 13,
-      "categoryId": 2,
       "name": "Pinterest",
       "url": "https://www.pinterest.com",
       "letter": "P",
-      "bgColor": "#e60023"
+      "bgColor": "#e60023",
+      "categoryIds": [
+        2
+      ]
     },
     {
       "id": 14,
-      "categoryId": 2,
       "name": "Iconfont",
       "url": "https://www.iconfont.cn",
       "letter": "I",
-      "bgColor": "#ff5c4b"
+      "bgColor": "#ff5c4b",
+      "categoryIds": [
+        2
+      ]
     },
     {
       "id": 15,
-      "categoryId": 3,
       "name": "StackOverflow",
       "url": "https://stackoverflow.com",
       "letter": "S",
-      "bgColor": "#f48024"
+      "bgColor": "#f48024",
+      "categoryIds": [
+        3
+      ]
     },
     {
       "id": 16,
-      "categoryId": 3,
       "name": "MDN Web Docs",
       "url": "https://developer.mozilla.org",
       "letter": "M",
-      "bgColor": "#1b1b1b"
+      "bgColor": "#1b1b1b",
+      "categoryIds": [
+        3
+      ]
     },
     {
       "id": 17,
-      "categoryId": 3,
       "name": "V2EX",
       "url": "https://www.v2ex.com",
       "letter": "V",
-      "bgColor": "#333333"
+      "bgColor": "#333333",
+      "categoryIds": [
+        3
+      ]
     },
     {
       "id": 18,
-      "categoryId": 3,
       "name": "npm",
       "url": "https://www.npmjs.com",
       "letter": "N",
-      "bgColor": "#cb3837"
+      "bgColor": "#cb3837",
+      "categoryIds": [
+        3
+      ]
     },
     {
       "id": 19,
-      "categoryId": 3,
       "name": "Vite",
       "url": "https://vite.dev",
       "letter": "V",
-      "bgColor": "#646cff"
+      "bgColor": "#646cff",
+      "categoryIds": [
+        3
+      ]
     },
     {
       "id": 20,
-      "categoryId": 3,
       "name": "React",
       "url": "https://react.dev",
       "letter": "R",
-      "bgColor": "#149eca"
+      "bgColor": "#149eca",
+      "categoryIds": [
+        3
+      ]
     },
     {
       "id": 21,
-      "categoryId": 4,
       "name": "36氪",
       "url": "https://36kr.com",
       "letter": "氪",
-      "bgColor": "#0066ff"
+      "bgColor": "#0066ff",
+      "categoryIds": [
+        4
+      ]
     },
     {
       "id": 22,
-      "categoryId": 4,
       "name": "IT之家",
       "url": "https://www.ithome.com",
       "letter": "IT",
-      "bgColor": "#d22222"
+      "bgColor": "#d22222",
+      "categoryIds": [
+        4
+      ]
     },
     {
       "id": 23,
-      "categoryId": 4,
       "name": "掘金",
       "url": "https://juejin.cn",
       "letter": "掘",
-      "bgColor": "#007fff"
+      "bgColor": "#007fff",
+      "categoryIds": [
+        4
+      ]
     },
     {
       "id": 24,
-      "categoryId": 4,
       "name": "Hacker News",
       "url": "https://news.ycombinator.com",
       "letter": "HN",
-      "bgColor": "#ff6600"
+      "bgColor": "#ff6600",
+      "categoryIds": [
+        4
+      ]
     },
     {
       "id": 25,
-      "categoryId": 4,
       "name": "Reddit",
       "url": "https://www.reddit.com",
       "letter": "R",
-      "bgColor": "#ff4500"
+      "bgColor": "#ff4500",
+      "categoryIds": [
+        4
+      ]
     },
     {
       "id": 26,
-      "categoryId": 5,
       "name": "Steam",
       "url": "https://store.steampowered.com",
       "letter": "S",
-      "bgColor": "#171a21"
+      "bgColor": "#171a21",
+      "categoryIds": [
+        5
+      ]
     },
     {
       "id": 27,
-      "categoryId": 5,
       "name": "Netflix",
       "url": "https://www.netflix.com",
       "letter": "N",
-      "bgColor": "#e50914"
+      "bgColor": "#e50914",
+      "categoryIds": [
+        5
+      ]
     },
     {
       "id": 28,
-      "categoryId": 5,
       "name": "网易云音乐",
       "url": "https://music.163.com",
       "letter": "乐",
-      "bgColor": "#e60026"
+      "bgColor": "#e60026",
+      "categoryIds": [
+        5
+      ]
     },
     {
       "id": 29,
-      "categoryId": 5,
       "name": "爱奇艺",
       "url": "https://www.iqiyi.com",
       "letter": "奇",
-      "bgColor": "#00cc4c"
+      "bgColor": "#00cc4c",
+      "categoryIds": [
+        5
+      ]
     }
   ],
   "settings": {
@@ -290,6 +348,11 @@
     "searchEngine": "google",
     "showSuggestions": true,
     "showCalendar": true,
-    "showQuote": true
+    "showQuote": true,
+    "siteTitle": "导航页",
+    "siteDescription": "一个高颜值、极简、无广告的卡片式导航页。",
+    "logoText": "iT",
+    "logoBgColor": "#4f46e5",
+    "logoBgColorEnd": "#ec4899"
   }
 }
