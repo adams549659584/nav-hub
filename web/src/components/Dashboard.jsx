@@ -6,6 +6,7 @@ export default function Dashboard({
   shortcuts,
   activeCategoryId,
   isEditing,
+  isAdmin = false,
   onDeleteShortcut,
   onEditShortcut,
   onUpdateShortcut,
@@ -57,24 +58,26 @@ export default function Dashboard({
             />
           ))}
 
-          {/* Add Shortcut tile (always 1x1) */}
-          <div
-            className="add-shortcut-tile-wrapper"
-            onClick={onAddShortcutClick}
-            title="添加快捷方式"
-          >
+          {/* 仅管理员可见：添加快捷方式 */}
+          {isAdmin && (
             <div
-              className="add-shortcut-tile"
-              style={{
-                width: '56px',
-                height: '56px',
-                borderRadius: settings.iconRadius || '16px',
-              }}
+              className="add-shortcut-tile-wrapper"
+              onClick={onAddShortcutClick}
+              title="添加快捷方式"
             >
-              <Icons.Plus size={24} />
+              <div
+                className="add-shortcut-tile"
+                style={{
+                  width: '56px',
+                  height: '56px',
+                  borderRadius: settings.iconRadius || '16px',
+                }}
+              >
+                <Icons.Plus size={24} />
+              </div>
+              <span className="add-shortcut-label">添加</span>
             </div>
-            <span className="add-shortcut-label">添加</span>
-          </div>
+          )}
         </div>
       </div>
 

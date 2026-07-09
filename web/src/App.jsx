@@ -339,6 +339,7 @@ export default function App() {
           )}
           activeCategoryId={activeCategoryId}
           isEditing={isAdmin && isEditing}
+          isAdmin={isAdmin}
           onDeleteShortcut={handleDeleteShortcut}
           onEditShortcut={handleEditShortcutClick}
           onUpdateShortcut={handleUpdateShortcut}

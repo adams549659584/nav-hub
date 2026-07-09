@@ -1,0 +1,92 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Debug API (Go)",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cmd/nav-hub",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "ADDR": ":8080",
+        "DATABASE_DSN": "file:./data/app.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)",
+        "ADMIN_USER": "admin",
+        "ADMIN_PASSWORD": "admin",
+        "SESSION_SECRET": "dev-secret-change-me"
+      },
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Debug API (Go, custom port)",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cmd/nav-hub",
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "ADDR": ":8081",
+        "DATABASE_DSN": "file:./data/app.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)",
+        "ADMIN_USER": "admin",
+        "ADMIN_PASSWORD": "admin",
+        "SESSION_SECRET": "dev-secret-change-me"
+      },
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "Vite Dev Server",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"],
+      "cwd": "${workspaceFolder}/web",
+      "console": "integratedTerminal",
+      "serverReadyAction": {
+        "pattern": "Local:\\s+(https?://\\S+)",
+        "uriFormat": "%s",
+        "action": "openExternally"
+      }
+    },
+    {
+      "name": "Chrome: Frontend (Vite)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/web",
+      "sourceMapPathOverrides": {
+        "webpack:///./src/*": "${webRoot}/src/*",
+        "/@fs/*": "/*",
+        "/src/*": "${webRoot}/src/*"
+      },
+      "preLaunchTask": "vite:dev"
+    },
+    {
+      "name": "Chrome: Production bundle (API:8080)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:8080",
+      "webRoot": "${workspaceFolder}/web",
+      "preLaunchTask": "build-web"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Full Stack (API + Vite)",
+      "configurations": ["Debug API (Go)", "Vite Dev Server"],
+      "stopAll": true,
+      "presentation": {
+        "order": 1,
+        "group": "fullstack"
+      }
+    },
+    {
+      "name": "Full Stack + Chrome",
+      "configurations": ["Debug API (Go)", "Chrome: Frontend (Vite)"],
+      "stopAll": true,
+      "presentation": {
+        "order": 2,
+        "group": "fullstack"
+      }
+    }
+  ]
+}
