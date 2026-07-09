@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as Icons from 'lucide-react';
 import { SEARCH_ENGINES } from '../utils/defaultData';
+import { shortcutMatchesQuery } from '../utils/matchText';
 
 export default function SearchBar({
   currentEngineId,
@@ -19,11 +20,13 @@ export default function SearchBar({
 
   const currentEngine = SEARCH_ENGINES.find((e) => e.id === currentEngineId) || SEARCH_ENGINES[0];
 
-  // Filter local bookmarks/shortcuts matching current category and search query
-  const matchingLocalShortcuts = (query && query.trim()) ? shortcuts.filter(s =>
-    s.categoryId === activeCategoryId &&
-    s.name.toLowerCase().includes(query.trim().toLowerCase())
-  ) : [];
+  // 本地导航：当前分类 + 原文/全拼/拼音首字母
+  const matchingLocalShortcuts =
+    query && query.trim()
+      ? shortcuts.filter(
+          (s) => s.categoryId === activeCategoryId && shortcutMatchesQuery(s, query)
+        )
+      : [];
 
   // Close menus on clicking outside
   useEffect(() => {

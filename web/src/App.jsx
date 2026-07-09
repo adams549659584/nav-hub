@@ -24,6 +24,7 @@ import {
 } from './utils/api';
 import { findCommonCategoryId, nextCategoryCode, nextNumericId } from './utils/ids';
 import { normalizeImportedConfig } from './utils/normalizeConfig';
+import { shortcutMatchesQuery } from './utils/matchText';
 import './App.css';
 
 export default function App() {
@@ -373,8 +374,7 @@ export default function App() {
           shortcuts={shortcuts.filter(
             (s) =>
               s.categoryId === activeCategoryId &&
-              (searchQuery.trim() === '' ||
-                s.name.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+              shortcutMatchesQuery(s, searchQuery)
           )}
           activeCategoryId={activeCategoryId}
           isEditing={isAdmin && isEditing}
