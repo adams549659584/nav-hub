@@ -551,7 +551,7 @@ export default function App() {
                   </>
                 ) : (
                   <>
-                    <Icons.Edit2 size={14} />
+                    <Icons.Edit3 size={14} />
                     <span>编辑布局</span>
                   </>
                 )}

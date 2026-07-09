@@ -56,6 +56,7 @@ export default function Dashboard({
               key={shortcut.id}
               shortcut={shortcut}
               isEditing={isEditing}
+              isAdmin={isAdmin}
               onDelete={onDeleteShortcut}
               onEditClick={onEditShortcut}
               onUpdate={onUpdateShortcut}

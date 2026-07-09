@@ -18,6 +18,7 @@ function tileBackground(bgColor) {
 export default function ShortcutIcon({
   shortcut,
   isEditing,
+  isAdmin = false,
   onDelete,
   onEditClick,
   settings,
@@ -67,6 +68,8 @@ export default function ShortcutIcon({
   };
 
   const handleContextMenu = (e) => {
+    // 访客无编辑权限，使用浏览器默认行为即可
+    if (!isAdmin) return;
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
     setMenuPos({
@@ -145,7 +148,7 @@ export default function ShortcutIcon({
           handleClick(e);
         }
       }}
-      onContextMenu={handleContextMenu}
+      onContextMenu={isAdmin ? handleContextMenu : undefined}
       style={{
         gridColumn: 'span 1',
         gridRow: 'span 1',
@@ -192,19 +195,23 @@ export default function ShortcutIcon({
         </button>
       )}
 
-      {/* Custom Context Menu */}
-      {showMenu && (
+      {/* 仅管理员显示编辑/删除右键菜单（样式与侧栏分类菜单一致） */}
+      {isAdmin && showMenu && (
         <div
           ref={menuRef}
           className="custom-context-menu glass-card"
           style={{ left: `${menuPos.x}px`, top: `${menuPos.y}px` }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button className="menu-item menu-edit" onClick={handleEditClickMenu}>
-            <Icons.Edit2 size={12} />
+          <button type="button" className="context-menu-item" onClick={handleEditClickMenu}>
+            <Icons.Edit3 size={12} style={{ opacity: 0.8 }} />
             <span>编辑网址</span>
           </button>
-          <button className="menu-item menu-danger" onClick={handleDeleteClick}>
+          <button
+            type="button"
+            className="context-menu-item delete-item"
+            onClick={handleDeleteClick}
+          >
             <Icons.Trash2 size={12} />
             <span>删除链接</span>
           </button>
@@ -310,47 +317,47 @@ export default function ShortcutIcon({
           white-space: nowrap;
         }
 
-        /* Custom Context Menu */
+        /* 与侧栏 context-menu 统一 */
         .custom-context-menu {
           position: absolute;
-          width: 120px;
-          padding: 6px;
+          min-width: 110px;
+          padding: 4px;
           border-radius: 10px;
           z-index: 99;
-          box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+          border: 1px solid rgba(255, 255, 255, 0.08);
           display: flex;
           flex-direction: column;
           gap: 2px;
           animation: fadeIn 0.15s ease;
         }
 
-        .menu-item {
+        .custom-context-menu .context-menu-item {
           display: flex;
           align-items: center;
           gap: 8px;
           background: none;
           border: none;
-          width: 100%;
-          padding: 6px 8px;
-          color: rgba(255, 255, 255, 0.75);
+          color: rgba(255, 255, 255, 0.8);
           font-size: 11.5px;
-          border-radius: 6px;
-          cursor: pointer;
+          padding: 8px 12px;
+          width: 100%;
           text-align: left;
-          transition: background-color 0.15s;
+          cursor: pointer;
+          border-radius: 6px;
+          transition: all 0.15s;
         }
 
-        .menu-item:hover {
-          background: rgba(255, 255, 255, 0.1);
+        .custom-context-menu .context-menu-item:hover {
+          background: rgba(255, 255, 255, 0.08);
           color: white;
         }
 
-        .menu-edit:hover {
-          background: rgba(59, 130, 246, 0.15);
-          color: #93c5fd;
+        .custom-context-menu .context-menu-item.delete-item {
+          color: #ef4444;
         }
 
-        .menu-danger:hover {
+        .custom-context-menu .context-menu-item.delete-item:hover {
           background: rgba(239, 68, 68, 0.15);
           color: #fca5a5;
         }
