@@ -29,6 +29,8 @@
   padding: 0;
 }
 
+/* 仅 html/body 垫黑底（首屏防白闪）。#root / .app-container 必须透明，
+   否则会盖住 z-index:-2 的壁纸层，导致一直黑屏、切换无效。 */
 html {
   background: #000;
   color-scheme: dark;
@@ -52,7 +54,7 @@ body {
   display: flex;
   position: relative;
   overflow: hidden;
-  background: #000;
+  background: transparent;
 }
 
 /* Background Wallpaper Manager */
@@ -62,7 +64,7 @@ body {
   height: 100vh;
   position: relative;
   overflow: hidden;
-  background: #000;
+  background: transparent;
 }
 
 .wallpaper-bg {
@@ -72,6 +74,7 @@ body {
   width: 100%;
   height: 100%;
   z-index: -2;
+  /* 壁纸层自身垫黑，图未加载时透出 body 黑底即可 */
   background-color: #000;
   background-size: cover;
   background-position: center;
