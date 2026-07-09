@@ -31,14 +31,17 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go build -trimpath -ldflags="-s -w" -o /nav-hub ./cmd/nav-hub
 
 FROM alpine:3.20
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata su-exec
 WORKDIR /app
 RUN adduser -D -u 10001 app
 COPY --from=go-build /nav-hub /app/nav-hub
-RUN mkdir -p /data && chown app:app /data
-USER app
+COPY docker-entrypoint.sh /app/docker-entrypoint.sh
+RUN chmod +x /app/docker-entrypoint.sh \
+  && mkdir -p /data \
+  && chown app:app /data
+# 以 root 进入 entrypoint：挂载卷后 chown /data，再 su-exec 到 app
 ENV ADDR=:8080
 ENV DATABASE_DSN=file:/data/app.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)
 EXPOSE 8080
 VOLUME ["/data"]
-ENTRYPOINT ["/app/nav-hub"]
+ENTRYPOINT ["/app/docker-entrypoint.sh"]

@@ -24,8 +24,11 @@ func Open(dsn string) (*DB, error) {
 	if dsn == "" {
 		dsn = "file:./data/app.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)"
 	}
-	if err := os.MkdirAll(filepath.Dir(extractPath(dsn)), 0o755); err != nil && !os.IsExist(err) {
-		_ = os.MkdirAll("data", 0o755)
+	dbPath := extractPath(dsn)
+	if dir := filepath.Dir(dbPath); dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			return nil, fmt.Errorf("create database dir %s: %w (check volume permissions for the process user)", dir, err)
+		}
 	}
 	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
@@ -33,11 +36,11 @@ func Open(dsn string) (*DB, error) {
 	}
 	if _, err := db.Exec(`PRAGMA foreign_keys = ON`); err != nil {
 		db.Close()
-		return nil, err
+		return nil, fmt.Errorf("open database %s: %w", dbPath, err)
 	}
 	if err := db.Ping(); err != nil {
 		db.Close()
-		return nil, err
+		return nil, fmt.Errorf("open database %s: %w (directory must be writable by the process user)", dbPath, err)
 	}
 	s := &DB{sql: db}
 	if err := s.migrate(); err != nil {
