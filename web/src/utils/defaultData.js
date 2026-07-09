@@ -1,50 +1,50 @@
 export const DEFAULT_CATEGORIES = [
-  { id: 'common', name: '常用推荐', icon: 'Home' },
-  { id: 'design', name: '设计创意', icon: 'Palette' },
-  { id: 'dev', name: '开发工具', icon: 'Code' },
-  { id: 'news', name: '资讯头条', icon: 'Newspaper' },
-  { id: 'play', name: '影音娱乐', icon: 'Tv' },
+  { id: 1, code: 'common', name: '常用推荐', icon: 'Home' },
+  { id: 2, code: 'design', name: '设计创意', icon: 'Palette' },
+  { id: 3, code: 'dev', name: '开发工具', icon: 'Code' },
+  { id: 4, code: 'news', name: '资讯头条', icon: 'Newspaper' },
+  { id: 5, code: 'play', name: '影音娱乐', icon: 'Tv' },
 ];
 
 export const DEFAULT_SHORTCUTS = [
-  // 常用推荐 - 纯快捷方式图标
-  { id: 's1', categoryId: 'common', type: 'shortcut', sizeX: 1, sizeY: 1, name: '哔哩哔哩', url: 'https://www.bilibili.com', bgColor: '#e33e6f', color: '#ffffff', letter: 'B' },
-  { id: 's2', categoryId: 'common', type: 'shortcut', sizeX: 1, sizeY: 1, name: 'GitHub', url: 'https://github.com', bgColor: '#181717', color: '#ffffff', letter: 'G' },
-  { id: 's3', categoryId: 'common', type: 'shortcut', sizeX: 1, sizeY: 1, name: '百度', url: 'https://www.baidu.com', bgColor: '#2319dc', color: '#ffffff', letter: '度' },
-  { id: 's4', categoryId: 'common', type: 'shortcut', sizeX: 1, sizeY: 1, name: '知乎', url: 'https://www.zhihu.com', bgColor: '#0084ff', color: '#ffffff', letter: '知' },
-  { id: 's5', categoryId: 'common', type: 'shortcut', sizeX: 1, sizeY: 1, name: 'ChatGPT', url: 'https://chatgpt.com', bgColor: '#10a37f', color: '#ffffff', letter: 'AI' },
-  { id: 's6', categoryId: 'common', type: 'shortcut', sizeX: 1, sizeY: 1, name: 'YouTube', url: 'https://www.youtube.com', bgColor: '#ff0000', color: '#ffffff', letter: 'Y' },
-  { id: 's7', categoryId: 'common', type: 'shortcut', sizeX: 1, sizeY: 1, name: '微博', url: 'https://weibo.com', bgColor: '#e6162d', color: '#ffffff', letter: '博' },
-  { id: 's8', categoryId: 'common', type: 'shortcut', sizeX: 1, sizeY: 1, name: '豆瓣', url: 'https://www.douban.com', bgColor: '#00b51e', color: '#ffffff', letter: '豆' },
+  // 常用推荐
+  { id: 1, categoryId: 1, name: '哔哩哔哩', url: 'https://www.bilibili.com', bgColor: '#e33e6f', letter: 'B' },
+  { id: 2, categoryId: 1, name: 'GitHub', url: 'https://github.com', bgColor: '#181717', letter: 'G' },
+  { id: 3, categoryId: 1, name: '百度', url: 'https://www.baidu.com', bgColor: '#2319dc', letter: '度' },
+  { id: 4, categoryId: 1, name: '知乎', url: 'https://www.zhihu.com', bgColor: '#0084ff', letter: '知' },
+  { id: 5, categoryId: 1, name: 'ChatGPT', url: 'https://chatgpt.com', bgColor: '#10a37f', letter: 'AI' },
+  { id: 6, categoryId: 1, name: 'YouTube', url: 'https://www.youtube.com', bgColor: '#ff0000', letter: 'Y' },
+  { id: 7, categoryId: 1, name: '微博', url: 'https://weibo.com', bgColor: '#e6162d', letter: '博' },
+  { id: 8, categoryId: 1, name: '豆瓣', url: 'https://www.douban.com', bgColor: '#00b51e', letter: '豆' },
 
   // 设计创意
-  { id: 's9', categoryId: 'design', type: 'shortcut', sizeX: 1, sizeY: 1, name: 'Figma', url: 'https://www.figma.com', bgColor: '#f24e1e', color: '#ffffff', letter: 'F' },
-  { id: 's10', categoryId: 'design', type: 'shortcut', sizeX: 2, sizeY: 1, name: 'Dribbble', url: 'https://dribbble.com', bgColor: '#ea4c89', color: '#ffffff', letter: 'D' },
-  { id: 's11', categoryId: 'design', type: 'shortcut', sizeX: 1, sizeY: 1, name: 'Behance', url: 'https://www.behance.net', bgColor: '#0057ff', color: '#ffffff', letter: 'B' },
-  { id: 's12', categoryId: 'design', type: 'shortcut', sizeX: 1, sizeY: 1, name: 'Unsplash', url: 'https://unsplash.com', bgColor: '#000000', color: '#ffffff', letter: 'U' },
-  { id: 's13', categoryId: 'design', type: 'shortcut', sizeX: 1, sizeY: 1, name: 'Pinterest', url: 'https://www.pinterest.com', bgColor: '#e60023', color: '#ffffff', letter: 'P' },
-  { id: 's14', categoryId: 'design', type: 'shortcut', sizeX: 1, sizeY: 1, name: 'Iconfont', url: 'https://www.iconfont.cn', bgColor: '#ff5c4b', color: '#ffffff', letter: 'I' },
+  { id: 9, categoryId: 2, name: 'Figma', url: 'https://www.figma.com', bgColor: '#f24e1e', letter: 'F' },
+  { id: 10, categoryId: 2, name: 'Dribbble', url: 'https://dribbble.com', bgColor: '#ea4c89', letter: 'D' },
+  { id: 11, categoryId: 2, name: 'Behance', url: 'https://www.behance.net', bgColor: '#0057ff', letter: 'B' },
+  { id: 12, categoryId: 2, name: 'Unsplash', url: 'https://unsplash.com', bgColor: '#000000', letter: 'U' },
+  { id: 13, categoryId: 2, name: 'Pinterest', url: 'https://www.pinterest.com', bgColor: '#e60023', letter: 'P' },
+  { id: 14, categoryId: 2, name: 'Iconfont', url: 'https://www.iconfont.cn', bgColor: '#ff5c4b', letter: 'I' },
 
   // 开发工具
-  { id: 's15', categoryId: 'dev', type: 'shortcut', sizeX: 1, sizeY: 1, name: 'StackOverflow', url: 'https://stackoverflow.com', bgColor: '#f48024', color: '#ffffff', letter: 'S' },
-  { id: 's16', categoryId: 'dev', type: 'shortcut', sizeX: 2, sizeY: 1, name: 'MDN Web Docs', url: 'https://developer.mozilla.org', bgColor: '#1b1b1b', color: '#ffffff', letter: 'M' },
-  { id: 's17', categoryId: 'dev', type: 'shortcut', sizeX: 1, sizeY: 1, name: 'V2EX', url: 'https://www.v2ex.com', bgColor: '#333333', color: '#ffffff', letter: 'V' },
-  { id: 's18', categoryId: 'dev', type: 'shortcut', sizeX: 1, sizeY: 1, name: 'npm', url: 'https://www.npmjs.com', bgColor: '#cb3837', color: '#ffffff', letter: 'N' },
-  { id: 's19', categoryId: 'dev', type: 'shortcut', sizeX: 1, sizeY: 1, name: 'Vite', url: 'https://vite.dev', bgColor: '#646cff', color: '#ffffff', letter: 'V' },
-  { id: 's20', categoryId: 'dev', type: 'shortcut', sizeX: 1, sizeY: 1, name: 'React', url: 'https://react.dev', bgColor: '#149eca', color: '#ffffff', letter: 'R' },
+  { id: 15, categoryId: 3, name: 'StackOverflow', url: 'https://stackoverflow.com', bgColor: '#f48024', letter: 'S' },
+  { id: 16, categoryId: 3, name: 'MDN Web Docs', url: 'https://developer.mozilla.org', bgColor: '#1b1b1b', letter: 'M' },
+  { id: 17, categoryId: 3, name: 'V2EX', url: 'https://www.v2ex.com', bgColor: '#333333', letter: 'V' },
+  { id: 18, categoryId: 3, name: 'npm', url: 'https://www.npmjs.com', bgColor: '#cb3837', letter: 'N' },
+  { id: 19, categoryId: 3, name: 'Vite', url: 'https://vite.dev', bgColor: '#646cff', letter: 'V' },
+  { id: 20, categoryId: 3, name: 'React', url: 'https://react.dev', bgColor: '#149eca', letter: 'R' },
 
   // 资讯头条
-  { id: 's21', categoryId: 'news', type: 'shortcut', sizeX: 1, sizeY: 1, name: '36氪', url: 'https://36kr.com', bgColor: '#0066ff', color: '#ffffff', letter: '氪' },
-  { id: 's22', categoryId: 'news', type: 'shortcut', sizeX: 2, sizeY: 1, name: 'IT之家', url: 'https://www.ithome.com', bgColor: '#d22222', color: '#ffffff', letter: 'IT' },
-  { id: 's23', categoryId: 'news', type: 'shortcut', sizeX: 1, sizeY: 1, name: '掘金', url: 'https://juejin.cn', bgColor: '#007fff', color: '#ffffff', letter: '掘' },
-  { id: 's24', categoryId: 'news', type: 'shortcut', sizeX: 1, sizeY: 1, name: 'Hacker News', url: 'https://news.ycombinator.com', bgColor: '#ff6600', color: '#ffffff', letter: 'HN' },
-  { id: 's25', categoryId: 'news', type: 'shortcut', sizeX: 1, sizeY: 1, name: 'Reddit', url: 'https://www.reddit.com', bgColor: '#ff4500', color: '#ffffff', letter: 'R' },
+  { id: 21, categoryId: 4, name: '36氪', url: 'https://36kr.com', bgColor: '#0066ff', letter: '氪' },
+  { id: 22, categoryId: 4, name: 'IT之家', url: 'https://www.ithome.com', bgColor: '#d22222', letter: 'IT' },
+  { id: 23, categoryId: 4, name: '掘金', url: 'https://juejin.cn', bgColor: '#007fff', letter: '掘' },
+  { id: 24, categoryId: 4, name: 'Hacker News', url: 'https://news.ycombinator.com', bgColor: '#ff6600', letter: 'HN' },
+  { id: 25, categoryId: 4, name: 'Reddit', url: 'https://www.reddit.com', bgColor: '#ff4500', letter: 'R' },
 
   // 影音娱乐
-  { id: 's26', categoryId: 'play', type: 'shortcut', sizeX: 1, sizeY: 1, name: 'Steam', url: 'https://store.steampowered.com', bgColor: '#171a21', color: '#ffffff', letter: 'S' },
-  { id: 's27', categoryId: 'play', type: 'shortcut', sizeX: 1, sizeY: 1, name: 'Netflix', url: 'https://www.netflix.com', bgColor: '#e50914', color: '#ffffff', letter: 'N' },
-  { id: 's28', categoryId: 'play', type: 'shortcut', sizeX: 2, sizeY: 1, name: '网易云音乐', url: 'https://music.163.com', bgColor: '#e60026', color: '#ffffff', letter: '乐' },
-  { id: 's29', categoryId: 'play', type: 'shortcut', sizeX: 1, sizeY: 1, name: '爱奇艺', url: 'https://www.iqiyi.com', bgColor: '#00cc4c', color: '#ffffff', letter: '奇' },
+  { id: 26, categoryId: 5, name: 'Steam', url: 'https://store.steampowered.com', bgColor: '#171a21', letter: 'S' },
+  { id: 27, categoryId: 5, name: 'Netflix', url: 'https://www.netflix.com', bgColor: '#e50914', letter: 'N' },
+  { id: 28, categoryId: 5, name: '网易云音乐', url: 'https://music.163.com', bgColor: '#e60026', letter: '乐' },
+  { id: 29, categoryId: 5, name: '爱奇艺', url: 'https://www.iqiyi.com', bgColor: '#00cc4c', letter: '奇' },
 ];
 
 export const DEFAULT_WALLPAPERS = [
@@ -112,6 +112,6 @@ export const DEFAULT_SETTINGS = {
   customWallpaperUrl: '',
   searchEngine: 'google',
   showSuggestions: true,
-  showCalendar: true, // Center header clock toggle
-  showQuote: true, // Bottom quote toggle
+  showCalendar: true,
+  showQuote: true,
 };

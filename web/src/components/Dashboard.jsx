@@ -62,8 +62,17 @@ export default function Dashboard({
           {isAdmin && (
             <div
               className="add-shortcut-tile-wrapper"
+              role="button"
+              tabIndex={0}
               onClick={onAddShortcutClick}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  onAddShortcutClick();
+                }
+              }}
               title="添加快捷方式"
+              style={{ cursor: 'pointer' }}
             >
               <div
                 className="add-shortcut-tile"

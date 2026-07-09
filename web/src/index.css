@@ -81,6 +81,25 @@ body {
   pointer-events: none;
 }
 
+/* Clickable affordance: hand cursor on interactive UI */
+button,
+[role="button"],
+a,
+.nav-item,
+.nav-item-wrapper,
+.more-options-btn,
+.shortcut-item-wrapper,
+.add-shortcut-tile-wrapper,
+.logo-icon.clickable,
+.sidebar-toggle-btn {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 /* Glassmorphism utilities */
 .glass-card {
   background: var(--glass-bg);

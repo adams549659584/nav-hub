@@ -97,15 +97,11 @@ export default function EditShortcutModal({
     }
 
     const payload = {
-      id: shortcutToEdit ? shortcutToEdit.id : `s-${Date.now()}`,
-      type: 'shortcut',
+      id: shortcutToEdit?.id,
       name: name.trim(),
       url: finalUrl,
       letter: (letter.trim() || name.trim().charAt(0)).toUpperCase(),
       bgColor,
-      color: '#ffffff',
-      sizeX: shortcutToEdit ? shortcutToEdit.sizeX || 1 : 1,
-      sizeY: shortcutToEdit ? shortcutToEdit.sizeY || 1 : 1,
       favicon: favicon.trim(),
     };
 

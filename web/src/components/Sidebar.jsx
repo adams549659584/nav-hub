@@ -110,7 +110,7 @@ export default function Sidebar({
           <button
             className="nav-item add-btn"
             onClick={onAddCategoryClick}
-            title="添加分类"
+            aria-label="添加分类"
           >
             <Icons.Plus size={20} />
             <span className="nav-label">添加分类</span>
@@ -123,7 +123,7 @@ export default function Sidebar({
           <button
             className="nav-item footer-btn"
             onClick={onOpenSettings}
-            title={isExpanded ? undefined : '全局设置'}
+            aria-label="全局设置"
           >
             <Icons.Settings size={20} />
             <span className="nav-label">全局设置</span>
@@ -161,7 +161,7 @@ export default function Sidebar({
             <Icons.Edit3 size={12} style={{ opacity: 0.8 }} />
             <span>编辑分类</span>
           </button>
-          {categories.length > 1 && contextMenu.category.id !== 'common' && (
+          {categories.length > 1 && contextMenu.category.code !== 'common' && (
             <button
               className="context-menu-item delete-item"
               onClick={() => {
@@ -277,6 +277,11 @@ export default function Sidebar({
           cursor: pointer;
           transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
           position: relative;
+        }
+
+        .nav-item,
+        .nav-item * {
+          cursor: pointer;
         }
 
         .sidebar-container.collapsed .nav-item {
@@ -455,8 +460,8 @@ export default function Sidebar({
           color: #fca5a5;
         }
 
-        /* Premium sliding glassmorphic tooltips in collapsed mode */
-        .sidebar-container.collapsed .nav-item::after {
+        /* 收起态：仅带 data-title 的分类项显示侧边提示（排除设置/添加等） */
+        .sidebar-container.collapsed .nav-item[data-title]::after {
           content: attr(data-title);
           position: absolute;
           left: 80px;
@@ -478,15 +483,14 @@ export default function Sidebar({
           pointer-events: none;
         }
 
-        .sidebar-container.collapsed .nav-item:hover::after {
+        .sidebar-container.collapsed .nav-item[data-title]:hover::after {
           opacity: 1;
           visibility: visible;
           left: 84px;
           transform: translateX(0);
         }
 
-        /* Tooltip arrow indicator */
-        .sidebar-container.collapsed .nav-item::before {
+        .sidebar-container.collapsed .nav-item[data-title]::before {
           content: '';
           position: absolute;
           left: 74px;
@@ -500,7 +504,7 @@ export default function Sidebar({
           pointer-events: none;
         }
 
-        .sidebar-container.collapsed .nav-item:hover::before {
+        .sidebar-container.collapsed .nav-item[data-title]:hover::before {
           opacity: 1;
           visibility: visible;
           left: 79px;

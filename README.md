@@ -126,12 +126,23 @@ nav-hub/
 | `make docker` | 构建本地镜像 `nav-hub:local` |
 | `cd web && pnpm lint` | Oxlint |
 
+## 数据模型（简要）
+
+| 实体 | 主键 | 说明 |
+|------|------|------|
+| categories | `id` INTEGER | `code` 稳定标识（如 `common`），`name` / `icon` / `sort_order` |
+| shortcuts | `id` INTEGER | 分列存储 `category_id`、`name`、`url`、`letter`、`bg_color`、`favicon`、`sort_order`（已去掉 JSON payload 与无用的 type/sizeX/sizeY/color） |
+| settings | 单行 JSON | 全局 UI 偏好 |
+
+公开 API 仍返回 `{ categories, shortcuts, settings }`；前端字段为 camelCase（`categoryId`、`bgColor`）。
+
 ## 使用注意
 
-- 分类 id 为 `common` 的「常用推荐」不可删除。
+- 分类 **code** 为 `common` 的「常用推荐」不可删除。
 - 自定义快捷方式图标建议 ≤ **200KB**（前端上传限制，过大影响配置体积）。
 - 默认壁纸使用 Unsplash 外链，离线或网络受限环境可改为本地 / 自定义 URL。
 - 管理员修改分类、快捷方式或设置后，前端会 debounce 写回 `PUT /api/admin/config`。
+- 本地已有 v1 库时，启动会自动迁移到 v2 schema；开发可删 `data/app.db` 后重新 seed。
 
 ## License
 

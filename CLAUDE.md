@@ -44,5 +44,5 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 注意点
 
 - 自定义快捷方式图标注意体积（约 200KB 上限，见 `EditShortcutModal`）
-- 分类 `common` 不可删
+- 分类 `code === 'common'` 不可删；实体主键为数字 `id`
 - 默认壁纸为 Unsplash 外链

@@ -1,6 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as Icons from 'lucide-react';
 
+function tileTextColor(bgColor) {
+  if (!bgColor) return '#fff';
+  const clean = bgColor.toLowerCase().trim();
+  if (clean === '#ffffff' || clean === '#fff' || clean === 'white') {
+    return '#1e293b';
+  }
+  return '#fff';
+}
+
 export default function ShortcutIcon({
   shortcut,
   isEditing,
@@ -74,11 +83,20 @@ export default function ShortcutIcon({
   return (
     <div
       className={`shortcut-item-wrapper ${isEditing ? 'wiggle' : ''} size-x-1 size-y-1`}
+      role="button"
+      tabIndex={0}
       onClick={handleClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick(e);
+        }
+      }}
       onContextMenu={handleContextMenu}
       style={{
         gridColumn: 'span 1',
         gridRow: 'span 1',
+        cursor: 'pointer',
       }}
     >
       {/* 1x1 Standard Shortcut layout */}
@@ -87,7 +105,7 @@ export default function ShortcutIcon({
           className={`shortcut-tile ${getIconSizeClass()}`}
           style={{
             backgroundColor: shortcut.bgColor || 'rgba(255,255,255,0.1)',
-            color: (shortcut.bgColor && (shortcut.bgColor.toLowerCase() === '#ffffff' || shortcut.bgColor.toLowerCase() === '#fff' || shortcut.bgColor.toLowerCase() === 'white')) ? '#1e293b' : (shortcut.color || '#fff'),
+            color: tileTextColor(shortcut.bgColor),
             borderRadius: settings.iconRadius || '16px',
           }}
         >
@@ -157,6 +175,10 @@ export default function ShortcutIcon({
           transform: translateY(-4px);
         }
 
+        .shortcut-item-wrapper * {
+          cursor: inherit;
+        }
+
         .flex-center-col {
           display: flex;
           flex-direction: column;
@@ -180,6 +202,7 @@ export default function ShortcutIcon({
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
           position: relative;
           transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          cursor: pointer;
         }
 
         .shortcut-item-wrapper:hover:not(.wiggle) .shortcut-tile {

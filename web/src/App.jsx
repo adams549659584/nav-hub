@@ -22,6 +22,8 @@ import {
   saveAdminConfig,
   logout as apiLogout,
 } from './utils/api';
+import { findCommonCategoryId, nextCategoryCode, nextNumericId } from './utils/ids';
+import { normalizeImportedConfig } from './utils/normalizeConfig';
 import './App.css';
 
 export default function App() {
@@ -36,7 +38,9 @@ export default function App() {
   const skipPersist = useRef(true);
   const saveTimer = useRef(null);
 
-  const [activeCategoryId, setActiveCategoryId] = useState('common');
+  const [activeCategoryId, setActiveCategoryId] = useState(
+    () => findCommonCategoryId(DEFAULT_CATEGORIES)
+  );
   const [isEditing, setIsEditing] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isEditShortcutOpen, setIsEditShortcutOpen] = useState(false);
@@ -46,7 +50,13 @@ export default function App() {
   const [categoryToEdit, setCategoryToEdit] = useState(null);
 
   const applyConfig = useCallback((cfg) => {
-    if (cfg.categories?.length) setCategories(cfg.categories);
+    if (cfg.categories?.length) {
+      setCategories(cfg.categories);
+      setActiveCategoryId((prev) => {
+        if (cfg.categories.some((c) => c.id === prev)) return prev;
+        return findCommonCategoryId(cfg.categories);
+      });
+    }
     if (cfg.shortcuts) setShortcuts(cfg.shortcuts);
     if (cfg.settings) setSettings({ ...DEFAULT_SETTINGS, ...cfg.settings });
   }, []);
@@ -153,11 +163,16 @@ export default function App() {
   };
 
   const handleSaveCategory = (name, icon = 'Grid', id) => {
-    if (id) {
+    if (id != null) {
       setCategories(categories.map((c) => (c.id === id ? { ...c, name, icon } : c)));
     } else {
-      const newId = `cat-${Date.now()}`;
-      const newCat = { id: newId, name, icon };
+      const newId = nextNumericId(categories);
+      const newCat = {
+        id: newId,
+        code: nextCategoryCode(categories),
+        name,
+        icon,
+      };
       setCategories([...categories, newCat]);
       setActiveCategoryId(newId);
     }
@@ -170,12 +185,13 @@ export default function App() {
 
   const handleDeleteCategory = (catId) => {
     if (categories.length <= 1) return;
-    if (catId === 'common') return;
+    const target = categories.find((c) => c.id === catId);
+    if (target?.code === 'common') return;
 
     if (window.confirm('删除该分类将会同时删除分类下的所有快捷方式，确定删除吗？')) {
       setCategories(categories.filter((c) => c.id !== catId));
       setShortcuts(shortcuts.filter((s) => s.categoryId !== catId));
-      setActiveCategoryId('common');
+      setActiveCategoryId(findCommonCategoryId(categories.filter((c) => c.id !== catId)));
     }
   };
 
@@ -184,11 +200,32 @@ export default function App() {
     if (exists) {
       setShortcuts(
         shortcuts.map((s) =>
-          s.id === payload.id ? { ...payload, categoryId: s.categoryId } : s
+          s.id === payload.id
+            ? {
+                id: s.id,
+                categoryId: s.categoryId,
+                name: payload.name,
+                url: payload.url,
+                letter: payload.letter || '',
+                bgColor: payload.bgColor || '#3b82f6',
+                favicon: payload.favicon || '',
+              }
+            : s
         )
       );
     } else {
-      setShortcuts([...shortcuts, { ...payload, categoryId: activeCategoryId }]);
+      setShortcuts([
+        ...shortcuts,
+        {
+          id: nextNumericId(shortcuts),
+          categoryId: activeCategoryId,
+          name: payload.name,
+          url: payload.url,
+          letter: payload.letter || '',
+          bgColor: payload.bgColor || '#3b82f6',
+          favicon: payload.favicon || '',
+        },
+      ]);
     }
     setShortcutToEdit(null);
   };
@@ -218,16 +255,18 @@ export default function App() {
   });
 
   const handleImportData = (parsedData) => {
-    if (parsedData.categories) setCategories(parsedData.categories);
-    if (parsedData.shortcuts) setShortcuts(parsedData.shortcuts);
-    if (parsedData.settings) setSettings({ ...DEFAULT_SETTINGS, ...parsedData.settings });
+    const normalized = normalizeImportedConfig(parsedData);
+    setCategories(normalized.categories);
+    setShortcuts(normalized.shortcuts);
+    setSettings({ ...DEFAULT_SETTINGS, ...normalized.settings });
+    setActiveCategoryId(findCommonCategoryId(normalized.categories));
   };
 
   const handleResetAll = async () => {
     setCategories(DEFAULT_CATEGORIES);
     setShortcuts(DEFAULT_SHORTCUTS);
     setSettings(DEFAULT_SETTINGS);
-    setActiveCategoryId('common');
+    setActiveCategoryId(findCommonCategoryId(DEFAULT_CATEGORIES));
     setIsEditing(false);
     skipPersist.current = false;
     if (isAdmin) {
