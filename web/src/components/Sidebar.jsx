@@ -62,9 +62,9 @@ export default function Sidebar({
   };
 
   const onCatDragOver = (e, catId) => {
-    if (!isEditing && !isAdmin) return;
+    if (!isEditing) return;
     e.preventDefault();
-    // accept category reorder or shortcut assign
+    // accept category reorder or shortcut assign / move
     e.dataTransfer.dropEffect = 'move';
     setDragOverCatId(catId);
   };
@@ -72,10 +72,13 @@ export default function Sidebar({
   const onCatDrop = (e, catId) => {
     e.preventDefault();
     setDragOverCatId(null);
+    if (!isEditing) return;
     const shortcutId = e.dataTransfer.getData('application/x-shortcut-id');
     const fromCatId = e.dataTransfer.getData('application/x-category-id');
-    if (shortcutId && onAssignShortcut && !isAllCategory(catId)) {
-      onAssignShortcut(Number(shortcutId), catId);
+    const fromShortcutCat = e.dataTransfer.getData('application/x-from-category-id');
+    if (shortcutId && onAssignShortcut) {
+      // 「全部」或具体分类均可接收；逻辑在 App 中处理
+      onAssignShortcut(Number(shortcutId), catId, fromShortcutCat);
       return;
     }
     if (fromCatId && onReorderCategories && !isAllCategory(catId) && !isAllCategory(fromCatId)) {
@@ -120,8 +123,17 @@ export default function Sidebar({
       </div>
 
       <nav className="nav-items">
-        {/* 全部 */}
-        <div className="nav-item-wrapper">
+        {/* 全部：编辑布局下可接收快捷方式（清空分类关联） */}
+        <div
+          className={`nav-item-wrapper${dragOverCatId === ALL_CATEGORY_ID ? ' drop-target' : ''}`}
+          onDragOver={isEditing ? (e) => onCatDragOver(e, ALL_CATEGORY_ID) : undefined}
+          onDragLeave={
+            isEditing
+              ? () => setDragOverCatId((id) => (id === ALL_CATEGORY_ID ? null : id))
+              : undefined
+          }
+          onDrop={isEditing ? (e) => onCatDrop(e, ALL_CATEGORY_ID) : undefined}
+        >
           <button
             className={`nav-item ${allActive ? 'active' : ''}`}
             onClick={() => setActiveCategoryId(ALL_CATEGORY_ID)}

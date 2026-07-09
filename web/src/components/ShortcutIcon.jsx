@@ -24,6 +24,8 @@ export default function ShortcutIcon({
   onDragOverShortcut,
   onDropOnShortcut,
   isDropTarget = false,
+  /** 当前侧栏分类（拖到其他分类时用于「移出源分类」） */
+  sourceCategoryId,
 }) {
   const [showMenu, setShowMenu] = useState(false);
   const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
@@ -101,6 +103,9 @@ export default function ShortcutIcon({
     }
     didDragRef.current = true;
     e.dataTransfer.setData('application/x-shortcut-id', String(shortcut.id));
+    if (sourceCategoryId != null && sourceCategoryId !== '') {
+      e.dataTransfer.setData('application/x-from-category-id', String(sourceCategoryId));
+    }
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(shortcut.id));
   };

@@ -8,6 +8,7 @@ import AddCategoryModal from './components/AddCategoryModal';
 import CalendarWidget from './components/Widgets/CalendarWidget';
 import QuoteFooter from './components/QuoteFooter';
 import LoginModal from './components/LoginModal';
+import ConfirmModal from './components/ConfirmModal';
 import * as Icons from 'lucide-react';
 
 import {
@@ -59,6 +60,8 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddCategoryOpen, setIsAddCategoryOpen] = useState(false);
   const [categoryToEdit, setCategoryToEdit] = useState(null);
+  /** 统一删除确认弹窗 */
+  const [confirmDialog, setConfirmDialog] = useState(null);
   /** 已完成加载的壁纸 key；与当前 key 不同则显示 loading */
   const [wallpaperLoadedKey, setWallpaperLoadedKey] = useState('');
 
@@ -265,27 +268,27 @@ export default function App() {
     if (categories.length <= 1) return;
     const target = categories.find((c) => c.id === catId);
     if (target?.code === 'common') return;
-
-    if (
-      window.confirm(
-        '确定删除该分类吗？导航不会被删除，只会从该分类中移除。'
-      )
-    ) {
-      const nextCats = categories.filter((c) => c.id !== catId);
-      setCategories(nextCats);
-      // 仅解除关联；无分类的导航仍在「全部」中
-      setShortcuts(
-        shortcuts.map((s) =>
-          withCategoryIds(
-            s,
-            getCategoryIds(s).filter((id) => id !== catId)
+    const name = target?.name ? `「${target.name}」` : '该';
+    setConfirmDialog({
+      title: '删除分类',
+      message: `确定删除分类${name}吗？\n导航不会被删除，只会从该分类中移除。`,
+      confirmText: '删除',
+      onConfirm: () => {
+        const nextCats = categories.filter((c) => c.id !== catId);
+        setCategories(nextCats);
+        setShortcuts(
+          shortcuts.map((s) =>
+            withCategoryIds(
+              s,
+              getCategoryIds(s).filter((id) => id !== catId)
+            )
           )
-        )
-      );
-      if (activeCategoryId === catId) {
-        setActiveCategoryId(findCommonCategoryId(nextCats));
-      }
-    }
+        );
+        if (activeCategoryId === catId) {
+          setActiveCategoryId(findCommonCategoryId(nextCats));
+        }
+      },
+    });
   };
 
   const handleSaveShortcut = (payload) => {
@@ -341,7 +344,16 @@ export default function App() {
   };
 
   const handleDeleteShortcut = (id) => {
-    setShortcuts(shortcuts.filter((s) => s.id !== id));
+    const target = shortcuts.find((s) => s.id === id);
+    const label = target?.name ? `「${target.name}」` : '该';
+    setConfirmDialog({
+      title: '删除快捷方式',
+      message: `确定删除快捷方式${label}吗？此操作不可撤销。`,
+      confirmText: '删除',
+      onConfirm: () => {
+        setShortcuts((prev) => prev.filter((s) => s.id !== id));
+      },
+    });
   };
 
   const handleUpdateShortcut = (updated) => {
@@ -386,16 +398,53 @@ export default function App() {
     setShortcuts([...reordered, ...rest]);
   };
 
-  /** 将导航加入某分类（多对多，不移除原分类） */
-  const handleAssignShortcutToCategory = (shortcutId, categoryId) => {
-    const cid = Number(categoryId);
-    if (!cid) return;
+  /**
+   * 编辑布局下拖拽快捷方式到侧栏分类：
+   * - 分类 A →「全部」：只去掉 A 的关联（仍可在全部里看到，不碰其他分类）
+   * - 分类 A → 分类 B：从 A 去掉、加上 B
+   * - 「全部」→ 任意分类：只加上目标，不减少任何关联（全部永远都能看到）
+   */
+  const handleAssignShortcutToCategory = (shortcutId, targetCategoryId, fromCategoryId) => {
+    const sourceId =
+      fromCategoryId != null && fromCategoryId !== ''
+        ? fromCategoryId
+        : activeCategoryId;
+
+    // 拖到「全部」：仅解除当前所在分类的关联
+    if (isAllCategory(targetCategoryId)) {
+      if (isAllCategory(sourceId)) return; // 已在全部视图，无源分类可减
+      const fromId = Number(sourceId);
+      if (!fromId) return;
+      setShortcuts(
+        shortcuts.map((s) => {
+          if (s.id !== shortcutId) return s;
+          return withCategoryIds(
+            s,
+            getCategoryIds(s).filter((id) => id !== fromId)
+          );
+        })
+      );
+      return;
+    }
+
+    const targetId = Number(targetCategoryId);
+    if (!targetId) return;
+
     setShortcuts(
       shortcuts.map((s) => {
         if (s.id !== shortcutId) return s;
-        const ids = getCategoryIds(s);
-        if (ids.includes(cid)) return s;
-        return withCategoryIds(s, [...ids, cid]);
+        let ids = getCategoryIds(s);
+        // 从具体分类挪出：减去源分类；从「全部」出发：不减，只加
+        if (!isAllCategory(sourceId)) {
+          const fromId = Number(sourceId);
+          if (fromId && fromId !== targetId) {
+            ids = ids.filter((id) => id !== fromId);
+          }
+        }
+        if (!ids.includes(targetId)) {
+          ids = [...ids, targetId];
+        }
+        return withCategoryIds(s, ids);
       })
     );
   };
@@ -605,6 +654,16 @@ export default function App() {
           const me = await fetchAuthMe();
           setIsAdmin(!!me.admin);
         }}
+      />
+
+      <ConfirmModal
+        isOpen={!!confirmDialog}
+        title={confirmDialog?.title}
+        message={confirmDialog?.message}
+        confirmText={confirmDialog?.confirmText}
+        danger
+        onConfirm={confirmDialog?.onConfirm}
+        onClose={() => setConfirmDialog(null)}
       />
 
       <style>{`

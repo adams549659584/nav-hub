@@ -12,6 +12,7 @@ export default function Dashboard({
   onAddShortcutClick,
   onReorderShortcuts,
   settings,
+  activeCategoryId,
 }) {
   // App 已按当前分类过滤，这里不再二次 filter
   const list = shortcuts;
@@ -62,6 +63,7 @@ export default function Dashboard({
               isDropTarget={isEditing && dropTargetId === shortcut.id}
               onDragOverShortcut={(id) => isEditing && setDropTargetId(id)}
               onDropOnShortcut={handleDropOnShortcut}
+              sourceCategoryId={activeCategoryId}
             />
           ))}
 
