@@ -130,6 +130,8 @@ export default function ShortcutIcon({
     }
   };
 
+  const displayName = shortcut.name || '';
+
   return (
     <div
       className={`shortcut-item-wrapper ${isEditing ? 'wiggle' : ''} size-x-1 size-y-1${
@@ -180,7 +182,7 @@ export default function ShortcutIcon({
             <Icons.Link size={24} />
           )}
         </div>
-        <span className="shortcut-name">{shortcut.name}</span>
+        <span className="shortcut-name">{displayName}</span>
       </div>
 
       {/* Unified Edit Delete Badge overlay for all cards */}
@@ -225,6 +227,11 @@ export default function ShortcutIcon({
           transition: transform 0.2s ease, box-shadow 0.2s;
           width: 100%;
           height: 100%;
+          z-index: 1;
+        }
+
+        .shortcut-item-wrapper:hover {
+          z-index: 40;
         }
 
         .shortcut-item-wrapper:hover:not(.wiggle) {
@@ -260,6 +267,7 @@ export default function ShortcutIcon({
 
         /* 1x1 standard link tile */
         .layout-1x1 {
+          position: relative;
           width: 100%;
           height: 100%;
           gap: 6px;
@@ -308,13 +316,48 @@ export default function ShortcutIcon({
         }
 
         .shortcut-name {
-          font-size: 11px;
-          color: rgba(255, 255, 255, 0.85);
-          text-shadow: 0 1.5px 3px rgba(0, 0, 0, 0.8);
+          position: relative;
+          z-index: 2;
+          display: block;
+          box-sizing: border-box;
           max-width: 100%;
+          line-height: 1.4;
+          padding: 2px 0;
+          font-size: 11px;
+          font-weight: 400;
+          color: rgba(255, 255, 255, 0.88);
+          text-align: center;
+          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+          white-space: nowrap;
           overflow: hidden;
           text-overflow: ellipsis;
-          white-space: nowrap;
+          border-radius: 8px;
+          border: 1px solid transparent;
+          background: transparent;
+          transition:
+            max-width 0.28s cubic-bezier(0.22, 1, 0.36, 1),
+            padding 0.22s ease,
+            background 0.22s ease,
+            border-color 0.22s ease,
+            box-shadow 0.22s ease,
+            text-shadow 0.2s ease;
+        }
+
+        /* 悬停：名称展开为克制毛玻璃标签 */
+        .shortcut-item-wrapper:hover .shortcut-name {
+          z-index: 50;
+          max-width: min(220px, 48vw);
+          width: max-content;
+          padding: 4px 10px;
+          overflow: visible;
+          text-overflow: clip;
+          color: rgba(255, 255, 255, 0.96);
+          text-shadow: none;
+          background: rgba(20, 20, 24, 0.72);
+          -webkit-backdrop-filter: blur(14px);
+          backdrop-filter: blur(14px);
+          border-color: rgba(255, 255, 255, 0.12);
+          box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
         }
 
         /* 与侧栏 context-menu 统一 */
