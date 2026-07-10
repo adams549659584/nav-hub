@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/adams549659584/nav-hub/internal/auth"
+	"github.com/adams549659584/nav-hub/internal/favicon"
 	"github.com/adams549659584/nav-hub/internal/seed"
 	"github.com/adams549659584/nav-hub/internal/static"
 	"github.com/adams549659584/nav-hub/internal/store"
@@ -72,6 +73,7 @@ func main() {
 		})
 
 		wallpaper.Register(api)
+		favicon.Register(api)
 
 		api.Get("/auth/me", func(w http.ResponseWriter, r *http.Request) {
 			jsonOK(w, map[string]bool{"admin": sessions.IsLoggedIn(r)})
@@ -97,6 +99,41 @@ func main() {
 
 		api.Post("/auth/logout", func(w http.ResponseWriter, r *http.Request) {
 			sessions.Clear(w)
+			jsonOK(w, map[string]bool{"ok": true})
+		})
+
+		api.With(sessions.RequireAdmin).Post("/admin/password", func(w http.ResponseWriter, r *http.Request) {
+			username, ok := sessions.Username(r)
+			if !ok || username == "" {
+				jsonError(w, http.StatusUnauthorized, "unauthorized")
+				return
+			}
+			var body struct {
+				CurrentPassword string `json:"currentPassword"`
+				NewPassword     string `json:"newPassword"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				jsonError(w, http.StatusBadRequest, "invalid json")
+				return
+			}
+			if len(body.NewPassword) < 6 {
+				jsonError(w, http.StatusBadRequest, "new password must be at least 6 characters")
+				return
+			}
+			stored, err := db.AdminPasswordHash(r.Context(), username)
+			if err != nil || bcrypt.CompareHashAndPassword([]byte(stored), []byte(body.CurrentPassword)) != nil {
+				jsonError(w, http.StatusUnauthorized, "current password is incorrect")
+				return
+			}
+			hash, err := bcrypt.GenerateFromPassword([]byte(body.NewPassword), bcrypt.DefaultCost)
+			if err != nil {
+				jsonError(w, http.StatusInternalServerError, "hash failed")
+				return
+			}
+			if err := db.UpdateAdminPassword(r.Context(), username, string(hash)); err != nil {
+				jsonError(w, http.StatusInternalServerError, err.Error())
+				return
+			}
 			jsonOK(w, map[string]bool{"ok": true})
 		})
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import * as Icons from 'lucide-react';
 import { getCategoryIds } from '../utils/categories';
+import { fetchFavicon } from '../utils/api';
 
 const PRESET_COLORS = [
   '#3b82f6', // Blue
@@ -50,7 +51,15 @@ export default function EditShortcutModal({
   const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
   const [showSvgPaste, setShowSvgPaste] = useState(false);
   const [svgError, setSvgError] = useState('');
+  const [faviconLoading, setFaviconLoading] = useState(false);
+  const [faviconHint, setFaviconHint] = useState('');
   const fileInputRef = useRef(null);
+  const faviconRef = useRef('');
+  const fetchSeqRef = useRef(0);
+
+  useEffect(() => {
+    faviconRef.current = favicon;
+  }, [favicon]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -73,6 +82,9 @@ export default function EditShortcutModal({
     }
     setShowSvgPaste(false);
     setSvgError('');
+    setFaviconLoading(false);
+    setFaviconHint('');
+    fetchSeqRef.current += 1;
     // 仅在打开/切换编辑对象时初始化，避免 defaultCategoryIds 引用变化重置表单
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shortcutToEdit, isOpen]);
@@ -83,23 +95,13 @@ export default function EditShortcutModal({
     }
   }, [name]);
 
-  const handleUrlBlur = () => {
-    if (url && !name) {
-      try {
-        let hostname = url;
-        if (!url.startsWith('http://') && !url.startsWith('https://')) {
-          hostname = 'https://' + url;
-        }
-        const parsed = new URL(hostname);
-        const parts = parsed.hostname.split('.');
-        const domain = parts.length > 2 ? parts[parts.length - 2] : parts[0];
-        if (domain) {
-          setName(domain.charAt(0).toUpperCase() + domain.slice(1));
-        }
-      } catch {
-        // ignore invalid URL
-      }
+  const normalizePageUrl = (raw) => {
+    let s = (raw || '').trim();
+    if (!s) return '';
+    if (!s.startsWith('http://') && !s.startsWith('https://')) {
+      s = 'https://' + s;
     }
+    return s;
   };
 
   const applyFavicon = (dataUrl) => {
@@ -112,7 +114,58 @@ export default function EditShortcutModal({
     setLetter('');
     setSvgError('');
     setShowSvgPaste(false);
+    setFaviconHint('');
     return true;
+  };
+
+  /** force=true 时覆盖已有图标；否则仅在无图标时应用 */
+  const loadFaviconFromUrl = async (rawUrl, { force = false } = {}) => {
+    const pageUrl = normalizePageUrl(rawUrl);
+    if (!pageUrl) return;
+    try {
+      // eslint-disable-next-line no-new
+      new URL(pageUrl);
+    } catch {
+      if (force) setFaviconHint('链接无效，无法获取图标');
+      return;
+    }
+    if (!force && faviconRef.current) return;
+
+    const seq = ++fetchSeqRef.current;
+    setFaviconLoading(true);
+    if (force) setFaviconHint('');
+    try {
+      const dataUrl = await fetchFavicon(pageUrl);
+      if (seq !== fetchSeqRef.current) return;
+      if (!force && faviconRef.current) return;
+      applyFavicon(dataUrl);
+    } catch (err) {
+      if (seq !== fetchSeqRef.current) return;
+      if (force) {
+        setFaviconHint(err.message || '获取图标失败');
+      }
+    } finally {
+      if (seq === fetchSeqRef.current) setFaviconLoading(false);
+    }
+  };
+
+  const handleUrlBlur = () => {
+    if (url && !name) {
+      try {
+        const parsed = new URL(normalizePageUrl(url));
+        const parts = parsed.hostname.split('.');
+        const domain = parts.length > 2 ? parts[parts.length - 2] : parts[0];
+        if (domain) {
+          setName(domain.charAt(0).toUpperCase() + domain.slice(1));
+        }
+      } catch {
+        // ignore invalid URL
+      }
+    }
+    // 无图标时自动抓取（含 SVG）
+    if (url.trim() && !faviconRef.current) {
+      loadFaviconFromUrl(url, { force: false });
+    }
   };
 
   const tryApplySvgText = (text) => {
@@ -243,7 +296,10 @@ export default function EditShortcutModal({
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content glass-card" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-content glass-card edit-shortcut-modal"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="modal-header">
           <h3>{shortcutToEdit ? '编辑快捷链接' : '添加快捷链接'}</h3>
           <button className="modal-close-btn" onClick={onClose}>
@@ -286,7 +342,7 @@ export default function EditShortcutModal({
                 value={letter}
                 onChange={(e) => {
                   setLetter(e.target.value);
-                  if (e.target.value) setFavicon(''); // clear uploaded icon if typing text
+                  if (e.target.value) setFavicon('');
                 }}
                 placeholder="G"
                 className="glass-input text-center"
@@ -294,7 +350,7 @@ export default function EditShortcutModal({
               />
             </div>
 
-            <div className="form-group flex-1">
+            <div className="form-group icon-actions-group">
               <label>图标</label>
               <div className="icon-upload-actions">
                 <button
@@ -308,50 +364,26 @@ export default function EditShortcutModal({
                 <button
                   type="button"
                   className="glass-btn icon-upload-btn"
+                  onClick={() => loadFaviconFromUrl(url, { force: true })}
+                  disabled={faviconLoading || !url.trim()}
+                  title="从网站自动获取图标（优先 SVG）"
+                >
+                  <Icons.Download size={13} />
+                  <span>{faviconLoading ? '获取中…' : '获取'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="glass-btn icon-upload-btn"
                   onClick={handlePasteSvg}
                   title="从剪贴板粘贴 iconfont 等 SVG 代码"
                 >
                   <Icons.ClipboardPaste size={13} />
-                  <span>粘贴 SVG</span>
+                  <span>SVG</span>
                 </button>
-                {favicon && (
-                  <button
-                    type="button"
-                    className="glass-btn icon-clear-btn"
-                    onClick={() => {
-                      setFavicon('');
-                      setSvgError('');
-                      setShowSvgPaste(false);
-                    }}
-                  >
-                    清除
-                  </button>
-                )}
               </div>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleImageUpload}
-                accept="image/*,.svg,image/svg+xml"
-                style={{ display: 'none' }}
-              />
-              {showSvgPaste && (
-                <div className="svg-paste-panel">
-                  <textarea
-                    className="glass-input svg-paste-input"
-                    defaultValue=""
-                    onPaste={handleSvgTextareaPaste}
-                    placeholder="在此粘贴 SVG（Ctrl/⌘+V），粘贴后自动应用"
-                    rows={3}
-                    spellCheck={false}
-                    autoFocus
-                  />
-                  {svgError && <p className="svg-paste-error">{svgError}</p>}
-                </div>
-              )}
             </div>
 
-            <div className="form-group" style={{ marginLeft: 'auto' }}>
+            <div className="form-group icon-preview-group">
               <label>预览</label>
               <div className="icon-preview-container">
                 <div
@@ -368,9 +400,47 @@ export default function EditShortcutModal({
                     letter || name.charAt(0) || '?'
                   )}
                 </div>
+                {favicon && (
+                  <button
+                    type="button"
+                    className="icon-preview-clear"
+                    onClick={() => {
+                      setFavicon('');
+                      setSvgError('');
+                      setShowSvgPaste(false);
+                      setFaviconHint('');
+                    }}
+                    title="清除图标"
+                  >
+                    <Icons.X size={11} strokeWidth={2.5} />
+                  </button>
+                )}
               </div>
             </div>
           </div>
+
+          {faviconHint && <p className="favicon-fetch-hint">{faviconHint}</p>}
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleImageUpload}
+            accept="image/*,.svg,image/svg+xml"
+            style={{ display: 'none' }}
+          />
+          {showSvgPaste && (
+            <div className="svg-paste-panel">
+              <textarea
+                className="glass-input svg-paste-input"
+                defaultValue=""
+                onPaste={handleSvgTextareaPaste}
+                placeholder="在此粘贴 SVG（Ctrl/⌘+V），粘贴后自动应用"
+                rows={3}
+                spellCheck={false}
+                autoFocus
+              />
+              {svgError && <p className="svg-paste-error">{svgError}</p>}
+            </div>
+          )}
 
           {categories.length > 0 && (
             <div className="form-group">
@@ -461,6 +531,10 @@ export default function EditShortcutModal({
       </div>
 
       <style>{`
+        .edit-shortcut-modal.modal-content {
+          width: 520px;
+        }
+
         .modal-header {
           display: flex;
           justify-content: space-between;
@@ -545,7 +619,7 @@ export default function EditShortcutModal({
           gap: 16px;
         }
 
-        /* 与 .glass-input 同高，避免写死 height 与输入框差 2px */
+        /* 与 .glass-input 同高 */
         .icon-meta-row {
           align-items: flex-end;
           gap: 12px;
@@ -557,38 +631,50 @@ export default function EditShortcutModal({
           padding-bottom: 0;
         }
 
+        .icon-actions-group {
+          flex: 1;
+          min-width: 0;
+        }
+
+        .icon-preview-group {
+          flex-shrink: 0;
+        }
+
         .icon-upload-actions {
           display: flex;
-          flex-wrap: wrap;
+          flex-wrap: nowrap;
           gap: 8px;
           align-items: center;
         }
 
-        .icon-upload-btn,
-        .icon-clear-btn {
+        .icon-upload-btn {
           height: 34px;
           padding: 0 12px;
           font-size: 12px;
           line-height: 1;
           white-space: nowrap;
           cursor: pointer;
-        }
-
-        .icon-upload-btn {
           background: rgba(255, 255, 255, 0.06);
           border-color: rgba(255, 255, 255, 0.1);
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
         }
 
-        .icon-clear-btn {
-          padding: 0 10px;
-          font-size: 11px;
-          background: rgba(239, 68, 68, 0.1);
-          border-color: rgba(239, 68, 68, 0.2);
+        .icon-upload-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .favicon-fetch-hint {
+          margin: -8px 0 0;
+          font-size: 11.5px;
           color: #fca5a5;
+          line-height: 1.35;
         }
 
         .svg-paste-panel {
-          margin-top: 8px;
+          margin-top: -4px;
           display: flex;
           flex-direction: column;
           gap: 8px;
@@ -624,9 +710,11 @@ export default function EditShortcutModal({
         }
 
         .icon-preview-container {
+          position: relative;
           display: flex;
           align-items: center;
           height: 34px;
+          width: 34px;
         }
 
         .icon-preview-tile {
@@ -652,6 +740,30 @@ export default function EditShortcutModal({
           height: 100%;
           object-fit: cover;
           display: block;
+        }
+
+        .icon-preview-clear {
+          position: absolute;
+          top: -6px;
+          right: -6px;
+          width: 16px;
+          height: 16px;
+          padding: 0;
+          border: none;
+          border-radius: 50%;
+          background: rgba(239, 68, 68, 0.92);
+          color: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+          z-index: 2;
+        }
+
+        .icon-preview-clear:hover {
+          background: #dc2626;
+          transform: scale(1.08);
         }
 
         .colors-grid {

@@ -819,3 +819,20 @@ func (d *DB) AdminPasswordHash(ctx context.Context, username string) (string, er
 		`SELECT password_hash FROM admin_users WHERE username = ?`, username).Scan(&hash)
 	return hash, err
 }
+
+func (d *DB) UpdateAdminPassword(ctx context.Context, username, passwordHash string) error {
+	res, err := d.sql.ExecContext(ctx,
+		`UPDATE admin_users SET password_hash = ? WHERE username = ?`,
+		passwordHash, username)
+	if err != nil {
+		return err
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if n == 0 {
+		return fmt.Errorf("admin user not found")
+	}
+	return nil
+}

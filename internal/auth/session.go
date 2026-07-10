@@ -49,11 +49,12 @@ func (m *Manager) Clear(w http.ResponseWriter) {
 }
 
 func (m *Manager) IsLoggedIn(r *http.Request) bool {
-	_, ok := m.username(r)
+	_, ok := m.Username(r)
 	return ok
 }
 
-func (m *Manager) username(r *http.Request) (string, bool) {
+// Username returns the logged-in admin username from the session cookie.
+func (m *Manager) Username(r *http.Request) (string, bool) {
 	c, err := r.Cookie(cookieName)
 	if err != nil || c.Value == "" {
 		return "", false

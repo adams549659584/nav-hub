@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import * as Icons from 'lucide-react';
 import { login } from '../utils/api';
+import PasswordInput from './PasswordInput';
 
 export default function LoginModal({ isOpen, onClose, onSuccess }) {
   const [username, setUsername] = useState('');
@@ -59,10 +60,8 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
           </div>
           <div className="form-group">
             <label htmlFor="login-password">密码</label>
-            <input
+            <PasswordInput
               id="login-password"
-              className="glass-input"
-              type="password"
               placeholder="密码"
               value={password}
               onChange={(e) => setPassword(e.target.value)}

@@ -38,6 +38,36 @@ export async function saveAdminConfig(payload) {
   return data;
 }
 
+export async function changeAdminPassword(currentPassword, newPassword) {
+  const res = await fetch('/api/admin/password', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const msg =
+      data.error === 'current password is incorrect'
+        ? '当前密码不正确'
+        : data.error === 'new password must be at least 6 characters'
+          ? '新密码至少 6 位'
+          : data.error || '修改密码失败';
+    throw new Error(msg);
+  }
+  return data;
+}
+
+/** 服务端抓取站点图标（SVG 优先），返回 data URL */
+export async function fetchFavicon(pageUrl) {
+  const params = new URLSearchParams({ url: pageUrl });
+  const res = await fetch(`/api/public/favicon?${params}`);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || '获取图标失败');
+  if (!data.favicon) throw new Error('未返回图标');
+  return data.favicon;
+}
+
 export async function fetchWallpaperSources() {
   const res = await fetch('/api/public/wallpapers/sources');
   if (!res.ok) {

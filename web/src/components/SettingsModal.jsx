@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import * as Icons from 'lucide-react';
 import { SEARCH_ENGINES } from '../utils/defaultData';
 import WallpaperLibrary from './WallpaperLibrary';
+import { changeAdminPassword } from '../utils/api';
 import {
   applyWallpaperSelection,
   normalizeWallpaperSettings,
   updateWallpaperField,
 } from '../utils/wallpaper';
+import PasswordInput from './PasswordInput';
 
 export default function SettingsModal({
   isOpen,
@@ -16,8 +18,40 @@ export default function SettingsModal({
 }) {
   const [activeTab, setActiveTab] = useState('wallpaper');
   const [wpLibOpen, setWpLibOpen] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [pwdBusy, setPwdBusy] = useState(false);
+  const [pwdError, setPwdError] = useState('');
+  const [pwdOk, setPwdOk] = useState('');
 
   if (!isOpen) return null;
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPwdError('');
+    setPwdOk('');
+    if (newPassword.length < 6) {
+      setPwdError('新密码至少 6 位');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      setPwdError('两次输入的新密码不一致');
+      return;
+    }
+    setPwdBusy(true);
+    try {
+      await changeAdminPassword(currentPassword, newPassword);
+      setPwdOk('密码已更新，当前登录仍然有效');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+    } catch (err) {
+      setPwdError(err.message || '修改失败');
+    } finally {
+      setPwdBusy(false);
+    }
+  };
 
   const normalized = normalizeWallpaperSettings(settings);
   const wp = normalized.wallpaper;
@@ -79,6 +113,13 @@ export default function SettingsModal({
             >
               <Icons.ToggleLeft size={16} />
               <span>功能开关</span>
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'account' ? 'active' : ''}`}
+              onClick={() => setActiveTab('account')}
+            >
+              <Icons.KeyRound size={16} />
+              <span>账号</span>
             </button>
           </div>
 
@@ -429,6 +470,55 @@ export default function SettingsModal({
               </div>
             )}
 
+            {activeTab === 'account' && (
+              <div className="pane-section animate-fade">
+                <h4>修改管理员密码</h4>
+                <p className="site-field-hint">
+                  修改后当前会话保持登录；下次请使用新密码。环境变量 ADMIN_PASSWORD 仅用于首次初始化。
+                </p>
+                <form className="account-pwd-form" onSubmit={handleChangePassword}>
+                  <label className="account-pwd-field">
+                    <span>当前密码</span>
+                    <PasswordInput
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      autoComplete="current-password"
+                      required
+                    />
+                  </label>
+                  <label className="account-pwd-field">
+                    <span>新密码</span>
+                    <PasswordInput
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      autoComplete="new-password"
+                      minLength={6}
+                      required
+                    />
+                  </label>
+                  <label className="account-pwd-field">
+                    <span>确认新密码</span>
+                    <PasswordInput
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      autoComplete="new-password"
+                      minLength={6}
+                      required
+                    />
+                  </label>
+                  {pwdError && <p className="account-pwd-error">{pwdError}</p>}
+                  {pwdOk && <p className="account-pwd-ok">{pwdOk}</p>}
+                  <button
+                    type="submit"
+                    className="glass-btn account-pwd-submit"
+                    disabled={pwdBusy}
+                  >
+                    {pwdBusy ? '保存中…' : '更新密码'}
+                  </button>
+                </form>
+              </div>
+            )}
+
           </div>
         </div>
       </div>
@@ -526,6 +616,49 @@ export default function SettingsModal({
           margin: -6px 0 10px;
           font-size: 11.5px;
           color: rgba(255, 255, 255, 0.4);
+        }
+
+        .account-pwd-form {
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          max-width: 320px;
+        }
+
+        .account-pwd-field {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          font-size: 12px;
+          color: rgba(255, 255, 255, 0.55);
+        }
+
+        .account-pwd-error {
+          margin: 0;
+          font-size: 12px;
+          color: #fca5a5;
+        }
+
+        .account-pwd-ok {
+          margin: 0;
+          font-size: 12px;
+          color: #86efac;
+        }
+
+        .account-pwd-submit {
+          align-self: flex-start;
+          margin-top: 4px;
+          background: linear-gradient(135deg, #3b82f6, #2563eb);
+          border-color: transparent;
+          color: #fff;
+          padding: 8px 16px;
+          font-size: 13px;
+          cursor: pointer;
+        }
+
+        .account-pwd-submit:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
 
         .site-logo-row {
