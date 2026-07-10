@@ -14,6 +14,25 @@ const PRESET_COLORS = [
   '#ffffff', // White
 ];
 
+const MAX_ICON_BYTES = 200 * 1024;
+
+/** 阿里 iconfont 等 SVG 源码 → data URL，供 <img> 使用 */
+function svgSourceToDataUrl(raw) {
+  let s = (raw || '').trim();
+  if (!s) throw new Error('请粘贴 SVG 代码');
+
+  const match = s.match(/<svg\b[\s\S]*?<\/svg>/i);
+  if (!match) throw new Error('未识别到 <svg>…</svg>，请粘贴完整 SVG 代码');
+  s = match[0];
+
+  if (!/\sxmlns\s*=/.test(s)) {
+    s = s.replace(/<svg\b/i, '<svg xmlns="http://www.w3.org/2000/svg"');
+  }
+  s = s.replace(/<\?xml[\s\S]*?\?>/i, '').trim();
+
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(s)}`;
+}
+
 export default function EditShortcutModal({
   isOpen,
   onClose,
@@ -29,6 +48,8 @@ export default function EditShortcutModal({
   const [bgColor, setBgColor] = useState('');
   const [favicon, setFavicon] = useState('');
   const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
+  const [showSvgPaste, setShowSvgPaste] = useState(false);
+  const [svgError, setSvgError] = useState('');
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -50,11 +71,12 @@ export default function EditShortcutModal({
         (defaultCategoryIds || []).map(Number).filter((n) => n > 0)
       );
     }
+    setShowSvgPaste(false);
+    setSvgError('');
     // 仅在打开/切换编辑对象时初始化，避免 defaultCategoryIds 引用变化重置表单
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shortcutToEdit, isOpen]);
 
-  // Autocomplete letter from name
   useEffect(() => {
     if (!shortcutToEdit && name.trim() && !letter) {
       setLetter(name.trim().charAt(0).toUpperCase());
@@ -72,12 +94,34 @@ export default function EditShortcutModal({
         const parts = parsed.hostname.split('.');
         const domain = parts.length > 2 ? parts[parts.length - 2] : parts[0];
         if (domain) {
-          const capitalized = domain.charAt(0).toUpperCase() + domain.slice(1);
-          setName(capitalized);
+          setName(domain.charAt(0).toUpperCase() + domain.slice(1));
         }
-      } catch (e) {
-        // ignore invalid URL lookups
+      } catch {
+        // ignore invalid URL
       }
+    }
+  };
+
+  const applyFavicon = (dataUrl) => {
+    if (dataUrl.length > MAX_ICON_BYTES) {
+      setSvgError('图标数据过大（超过约 200KB），请简化 SVG 或压缩图片');
+      setShowSvgPaste(true);
+      return false;
+    }
+    setFavicon(dataUrl);
+    setLetter('');
+    setSvgError('');
+    setShowSvgPaste(false);
+    return true;
+  };
+
+  const tryApplySvgText = (text) => {
+    try {
+      return applyFavicon(svgSourceToDataUrl(text));
+    } catch (err) {
+      setShowSvgPaste(true);
+      setSvgError(err.message || 'SVG 解析失败');
+      return false;
     }
   };
 
@@ -85,20 +129,57 @@ export default function EditShortcutModal({
     const file = e.target.files[0];
     if (!file) return;
 
-    // Check size limit: 200KB max to avoid localStorage bloat
-    if (file.size > 200 * 1024) {
+    if (file.size > MAX_ICON_BYTES) {
       alert('图片大小不能超过 200KB，请压缩后上传！');
+      e.target.value = '';
       return;
     }
 
+    const isSvg =
+      file.type === 'image/svg+xml' || /\.svg$/i.test(file.name || '');
     const reader = new FileReader();
-    reader.onload = (uploadEvent) => {
-      setFavicon(uploadEvent.target.result); // Base64 data URL
-      setLetter(''); // Clear text letter
+    reader.onload = (ev) => {
+      const result = String(ev.target.result || '');
+      if (isSvg) {
+        tryApplySvgText(result);
+      } else {
+        applyFavicon(result);
+      }
     };
-    reader.readAsDataURL(file);
-    // 允许同一文件再次选择
+    if (isSvg) reader.readAsText(file);
+    else reader.readAsDataURL(file);
     e.target.value = '';
+  };
+
+  const handlePasteSvg = async () => {
+    if (showSvgPaste) {
+      setShowSvgPaste(false);
+      setSvgError('');
+      return;
+    }
+    setSvgError('');
+    try {
+      if (!navigator.clipboard?.readText) {
+        setShowSvgPaste(true);
+        return;
+      }
+      const text = await navigator.clipboard.readText();
+      if (!text?.trim()) {
+        setShowSvgPaste(true);
+        setSvgError('剪贴板为空，请粘贴 SVG 到下方');
+        return;
+      }
+      tryApplySvgText(text);
+    } catch {
+      setShowSvgPaste(true);
+    }
+  };
+
+  const handleSvgTextareaPaste = (e) => {
+    const text = e.clipboardData?.getData('text');
+    if (!text?.trim()) return;
+    e.preventDefault();
+    tryApplySvgText(text);
   };
 
   const handleSubmit = (e) => {
@@ -214,7 +295,7 @@ export default function EditShortcutModal({
             </div>
 
             <div className="form-group flex-1">
-              <label>上传本地图标</label>
+              <label>图标</label>
               <div className="icon-upload-actions">
                 <button
                   type="button"
@@ -222,13 +303,26 @@ export default function EditShortcutModal({
                   onClick={() => fileInputRef.current.click()}
                 >
                   <Icons.Upload size={13} />
-                  <span>上传图标</span>
+                  <span>上传</span>
+                </button>
+                <button
+                  type="button"
+                  className="glass-btn icon-upload-btn"
+                  onClick={handlePasteSvg}
+                  title="从剪贴板粘贴 iconfont 等 SVG 代码"
+                >
+                  <Icons.ClipboardPaste size={13} />
+                  <span>粘贴 SVG</span>
                 </button>
                 {favicon && (
                   <button
                     type="button"
                     className="glass-btn icon-clear-btn"
-                    onClick={() => setFavicon('')}
+                    onClick={() => {
+                      setFavicon('');
+                      setSvgError('');
+                      setShowSvgPaste(false);
+                    }}
                   >
                     清除
                   </button>
@@ -238,9 +332,23 @@ export default function EditShortcutModal({
                 type="file"
                 ref={fileInputRef}
                 onChange={handleImageUpload}
-                accept="image/*"
+                accept="image/*,.svg,image/svg+xml"
                 style={{ display: 'none' }}
               />
+              {showSvgPaste && (
+                <div className="svg-paste-panel">
+                  <textarea
+                    className="glass-input svg-paste-input"
+                    defaultValue=""
+                    onPaste={handleSvgTextareaPaste}
+                    placeholder="在此粘贴 SVG（Ctrl/⌘+V），粘贴后自动应用"
+                    rows={3}
+                    spellCheck={false}
+                    autoFocus
+                  />
+                  {svgError && <p className="svg-paste-error">{svgError}</p>}
+                </div>
+              )}
             </div>
 
             <div className="form-group" style={{ marginLeft: 'auto' }}>
@@ -451,6 +559,7 @@ export default function EditShortcutModal({
 
         .icon-upload-actions {
           display: flex;
+          flex-wrap: wrap;
           gap: 8px;
           align-items: center;
         }
@@ -475,6 +584,30 @@ export default function EditShortcutModal({
           font-size: 11px;
           background: rgba(239, 68, 68, 0.1);
           border-color: rgba(239, 68, 68, 0.2);
+          color: #fca5a5;
+        }
+
+        .svg-paste-panel {
+          margin-top: 8px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .svg-paste-input {
+          width: 100%;
+          min-height: 72px;
+          height: auto !important;
+          padding: 10px 12px !important;
+          font-size: 11.5px;
+          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+          line-height: 1.4;
+          resize: vertical;
+        }
+
+        .svg-paste-error {
+          margin: 0;
+          font-size: 12px;
           color: #fca5a5;
         }
 
