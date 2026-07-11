@@ -10,8 +10,7 @@ lerna-debug.log*
 node_modules
 /dist
 web/dist
-internal/static/dist/*
-!internal/static/dist/index.html
+# internal/static/dist 需入库：Vercel / 纯 Go 构建依赖 go:embed；Docker 构建时仍会覆盖
 dist-ssr
 *.local
 

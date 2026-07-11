@@ -109,7 +109,7 @@ docker compose up -d
 
 - 仓库内已含 [`vercel.json`](./vercel.json) 与 [`api/index.go`](./api/index.go)（Go Serverless 入口）
 - 未设置 `DATABASE_DSN` 时，在 Vercel 上自动使用 `file:/tmp/nav-hub.db?...`（**不持久**）
-- 前端构建产物需已嵌入 `internal/static/dist/`（本仓库提交与 Docker 构建均会保证）
+- 前端需已嵌入 `internal/static/dist/`（仓库会提交完整构建产物；改 `web/` 后请 `make build-web` 并提交，否则 Vercel 仍是旧前端）。Docker 构建会在镜像内重新构建前端，不依赖该目录是否最新。
 - 部署后在设置页改密时，**新密码至少 6 位**（与本地相同；API `POST /api/admin/password` 亦校验）
 - 生产勿依赖 Vercel 存配置；演示后若需长期使用请改 Docker / 自托管
 
@@ -199,7 +199,7 @@ nav-hub/
 └── Makefile
 ```
 
-`internal/static/dist/` 由 `make build-web` 或 Docker 构建生成。
+`internal/static/dist/` 由 `make build-web` 生成并提交（供 Vercel / 纯 `go build` 的 `go:embed`）；Docker 构建时会重新生成并覆盖。
 
 ---
 
