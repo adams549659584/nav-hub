@@ -5,6 +5,7 @@ import WallpaperLibrary from './WallpaperLibrary';
 import { changeAdminPassword } from '../utils/api';
 import {
   applyWallpaperSelection,
+  downloadWallpaperFile,
   normalizeWallpaperSettings,
   updateWallpaperField,
 } from '../utils/wallpaper';
@@ -160,16 +161,14 @@ export default function SettingsModal({
                         更换壁纸
                       </button>
                       {wp.src && wp.type !== 'color' && !(wp.src || '').startsWith('data:') && (
-                        <a
+                        <button
+                          type="button"
                           className="glass-btn"
-                          href={wp.src}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          download
+                          onClick={() => downloadWallpaperFile(wp.src, wp.title || 'wallpaper')}
                         >
                           <Icons.Download size={14} />
                           下载
-                        </a>
+                        </button>
                       )}
                     </div>
                   </div>
@@ -282,8 +281,8 @@ export default function SettingsModal({
                     className="site-logo-preview"
                     style={{
                       background: `linear-gradient(135deg, ${
-                        settings.logoBgColor || '#4f46e5'
-                      }, ${settings.logoBgColorEnd || settings.logoBgColor || '#ec4899'})`,
+                        settings.logoBgColor || '#535353'
+                      }, ${settings.logoBgColorEnd || settings.logoBgColor || '#000000'})`,
                     }}
                     title="预览"
                   >
@@ -298,18 +297,18 @@ export default function SettingsModal({
                     <span>起始色</span>
                     <input
                       type="color"
-                      value={settings.logoBgColor || '#4f46e5'}
+                      value={settings.logoBgColor || '#535353'}
                       onChange={(e) => updateSetting('logoBgColor', e.target.value)}
                     />
                     <input
                       type="text"
                       className="glass-input site-color-hex"
-                      value={settings.logoBgColor || '#4f46e5'}
+                      value={settings.logoBgColor || '#535353'}
                       maxLength={7}
                       onChange={(e) => {
                         const v = e.target.value.trim();
                         if (/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v) || v === '') {
-                          updateSetting('logoBgColor', v || '#4f46e5');
+                          updateSetting('logoBgColor', v || '#535353');
                         } else {
                           updateSetting('logoBgColor', v);
                         }
@@ -320,13 +319,13 @@ export default function SettingsModal({
                     <span>结束色</span>
                     <input
                       type="color"
-                      value={settings.logoBgColorEnd || settings.logoBgColor || '#ec4899'}
+                      value={settings.logoBgColorEnd || settings.logoBgColor || '#000000'}
                       onChange={(e) => updateSetting('logoBgColorEnd', e.target.value)}
                     />
                     <input
                       type="text"
                       className="glass-input site-color-hex"
-                      value={settings.logoBgColorEnd || settings.logoBgColor || '#ec4899'}
+                      value={settings.logoBgColorEnd || settings.logoBgColor || '#000000'}
                       maxLength={7}
                       onChange={(e) => {
                         const v = e.target.value.trim();

@@ -1,3 +1,19 @@
+/** Trigger a real file download (same-origin proxy for remote URLs). */
+export function downloadWallpaperFile(src, title = 'wallpaper') {
+  if (!src || src.startsWith('#') || src.startsWith('data:')) return;
+  const name = String(title || 'wallpaper')
+    .replace(/[\\/:*?"<>|]+/g, '_')
+    .trim()
+    .slice(0, 80) || 'wallpaper';
+  const params = new URLSearchParams({ url: src, name });
+  const a = document.createElement('a');
+  a.href = `/api/public/wallpapers/download?${params}`;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
 /** Default wallpaper object stored in settings.wallpaper */
 export const DEFAULT_WALLPAPER = {
   source: 'preset',

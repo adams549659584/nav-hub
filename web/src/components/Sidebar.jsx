@@ -15,8 +15,8 @@ export default function Sidebar({
   onReorderCategories,
   onAssignShortcut,
   logoText = 'iT',
-  logoBgColor = '#4f46e5',
-  logoBgColorEnd = '#ec4899',
+  logoBgColor = '#535353',
+  logoBgColorEnd = '#000000',
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, category: null });
@@ -89,8 +89,8 @@ export default function Sidebar({
   const allActive = isAllCategory(activeCategoryId);
   const displayLogo = (logoText || 'iT').slice(0, 4);
   const logoStyle = {
-    background: `linear-gradient(135deg, ${logoBgColor || '#4f46e5'}, ${
-      logoBgColorEnd || logoBgColor || '#ec4899'
+    background: `linear-gradient(135deg, ${logoBgColor || '#535353'}, ${
+      logoBgColorEnd || logoBgColor || '#000000'
     })`,
   };
 
@@ -292,7 +292,7 @@ export default function Sidebar({
           width: 40px;
           height: 40px;
           border-radius: 12px;
-          background: linear-gradient(135deg, #4f46e5, #ec4899);
+          background: linear-gradient(135deg, #535353, #000000);
           color: white;
           font-weight: bold;
           font-size: 15px;

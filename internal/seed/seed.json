@@ -352,7 +352,7 @@
     "siteTitle": "导航页",
     "siteDescription": "一个高颜值、极简、无广告的卡片式导航页。",
     "logoText": "iT",
-    "logoBgColor": "#4f46e5",
-    "logoBgColorEnd": "#ec4899"
+    "logoBgColor": "#535353",
+    "logoBgColorEnd": "#000000"
   }
 }

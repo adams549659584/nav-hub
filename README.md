@@ -73,7 +73,7 @@
 | 前端 | React 19、Vite、lucide-react、Oxlint |
 | 后端 | Go 1.22+、chi、bcrypt Session Cookie |
 | 存储 | SQLite（`modernc.org/sqlite`，纯 Go） |
-| 部署 | Docker 单镜像 / 本地二进制，GHCR 多架构构建 |
+| 部署 | Docker 单镜像 / 本地二进制 / Vercel 演示，GHCR 多架构构建 |
 
 ---
 
@@ -89,6 +89,26 @@ docker compose up -d
 浏览器打开 <http://localhost:8080>。默认管理员见 `docker-compose.yml`。
 
 数据卷：`nav-hub-data` → 容器内 `/data/app.db`。
+
+### Vercel 一键部署
+
+> ⭐ **仅适合演示 / 试用**。Vercel 无持久磁盘，SQLite 落在 `/tmp`，**冷启动、新实例或重新部署后数据会丢失**。长期自托管请用 Docker 或本地二进制。
+
+一键部署，点这里 => [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/adams549659584/nav-hub&project-name=nav-hub&repository-name=nav-hub&env=SESSION_SECRET,ADMIN_USER,ADMIN_PASSWORD&envDescription=%E7%94%9F%E4%BA%A7%E5%8A%A1%E5%BF%85%E4%BF%AE%E6%94%B9%20SESSION_SECRET%20%E4%B8%8E%E7%AE%A1%E7%90%86%E5%91%98%E5%AF%86%E7%A0%81&envLink=https://github.com/adams549659584/nav-hub#%E7%8E%AF%E5%A2%83%E5%8F%98%E9%87%8F)
+
+部署后在 Vercel 项目 **Settings → Environment Variables** 中配置（与本地含义相同）：
+
+| 变量 | 建议 |
+|------|------|
+| `SESSION_SECRET` | 随机长字符串（**必改**） |
+| `ADMIN_USER` | 首次初始化管理员用户名 |
+| `ADMIN_PASSWORD` | 首次初始化管理员密码 |
+
+说明：
+
+- 仓库内已含 [`vercel.json`](./vercel.json) 与 [`api/index.go`](./api/index.go)（Go Serverless 入口）
+- 未设置 `DATABASE_DSN` 时，在 Vercel 上自动使用 `file:/tmp/nav-hub.db?...`
+- 前端构建产物需已嵌入 `internal/static/dist/`（本仓库提交与 Docker 构建均会保证）
 
 ### 本地二进制
 
@@ -127,7 +147,7 @@ make dev-web        # Vite → http://localhost:5173（/api 代理到 8080）
 | 变量 | 默认（本地） | 说明 |
 |------|----------------|------|
 | `ADDR` | `:8080` | 监听地址 |
-| `DATABASE_DSN` | `file:./data/app.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)` | SQLite DSN；Docker 内为 `file:/data/app.db?...` |
+| `DATABASE_DSN` | `file:./data/app.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)` | SQLite DSN；Docker 内为 `file:/data/app.db?...`；Vercel 未设置时为 `/tmp/nav-hub.db`（不持久） |
 | `ADMIN_USER` | `admin` | 首次初始化管理员用户名 |
 | `ADMIN_PASSWORD` | `admin` | 首次初始化管理员密码 |
 | `SESSION_SECRET` | `dev-secret-change-me` | Session 签名密钥，**生产务必修改** |
@@ -157,11 +177,13 @@ make dev-web        # Vite → http://localhost:5173（/api 代理到 8080）
 
 ```
 nav-hub/
-├── cmd/nav-hub/          # Go 入口
+├── api/                  # Vercel Serverless 入口（api/index.go）
+├── cmd/nav-hub/          # 本地 / Docker Go 入口
 ├── internal/
 │   ├── auth/             # Cookie Session
 │   ├── favicon/          # 站点图标抓取
 │   ├── seed/             # 首次灌库 seed.json
+│   ├── server/           # HTTP 路由与启动（本地与 Vercel 共用）
 │   ├── static/dist/      # 嵌入的前端构建产物（勿手改）
 │   ├── store/            # SQLite 读写
 │   └── wallpaper/        # 壁纸代理
@@ -169,6 +191,7 @@ nav-hub/
 ├── .vscode/              # 调试与推荐扩展
 ├── Dockerfile
 ├── docker-compose.yml
+├── vercel.json
 └── Makefile
 ```
 
@@ -208,7 +231,8 @@ nav-hub/
 - 自定义图标建议 ≤ **200KB**；支持粘贴 SVG 与自动抓取。  
 - **站内预览**依赖目标站是否允许被 iframe 嵌入；多数大站会拒绝，请改用新标签页。  
 - 管理员改数据后前端会 debounce 写回；已有库启动会自动迁移 schema。  
-- 生产务必改 `SESSION_SECRET` 与管理员密码。
+- 生产务必改 `SESSION_SECRET` 与管理员密码。  
+- Vercel 部署仅适合演示：数据在 `/tmp`，不保证持久化。
 
 ---
 
