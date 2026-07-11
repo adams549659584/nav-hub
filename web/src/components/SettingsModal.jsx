@@ -562,9 +562,9 @@ export default function SettingsModal({
                 <h4>功能开关</h4>
                 <div className="toggle-list">
                   {[
-                    { key: 'showCalendar', label: '显示顶部时钟 (Show Top Clock)' },
-                    { key: 'showQuote', label: '显示底部一言 (Show Bottom Quote)' },
-                    { key: 'showSuggestions', label: '显示搜索词推荐 (Show Search Suggestions)' }
+                    { key: 'showCalendar', label: '显示顶部时钟' },
+                    { key: 'showQuote', label: '显示底部一言' },
+                    { key: 'showSuggestions', label: '显示搜索词推荐' },
                   ].map((item) => (
                     <div key={item.key} className="toggle-row">
                       <span>{item.label}</span>
