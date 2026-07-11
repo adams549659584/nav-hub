@@ -26,7 +26,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `internal/store` — SQLite 与配置读写
 - `internal/auth` — Cookie Session
 - `internal/seed` — `seed.json` 首次灌库
-- `internal/static/dist/` — 嵌入的前端构建产物（勿手改；`make build-web` / Docker / Vercel `scripts/vercel-prepare.sh` 生成）
+- `internal/static/dist/` — go:embed 目录（仓库仅占位 index.html；完整 SPA 由 `make build-web` / Docker / Vercel 生成，不提交）
 - `Dockerfile` / `docker-compose.yml` — 单镜像部署
 - `.github/workflows/docker-ghcr.yml` — 推送到 GHCR（BuildKit GHA cache）
 

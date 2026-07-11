@@ -117,7 +117,7 @@ docker compose up -d
 
 - 仓库内已含 [`vercel.json`](./vercel.json) 与 [`api/index.go`](./api/index.go)（Go Serverless 入口）
 - 未设置 `DATABASE_DSN` 时，在 Vercel 上自动使用 `file:/tmp/nav-hub.db?...`（**不持久**）
-- **前端构建**：Vercel 部署时会自动跑 `scripts/vercel-prepare.sh`（`pnpm build` → 写入 `internal/static/dist` 再编译 Go），**改 `web/` 后只需推送源码**。本地纯 `go build` 仍需先 `make build-web`（或依赖仓库中的 dist）；Docker 构建在镜像内自行构建前端。
+- **前端构建**：Vercel 会跑 `scripts/vercel-prepare.sh` 自动构建并写入 `internal/static/dist` 再编译 Go；Docker 同理。**改 `web/` 后只需推送源码**。本地纯 `go build` / `go run` 前请先 `make build-web`（仓库里只留占位页，不含完整 SPA）。
 - 部署后在设置页改密时，**新密码至少 6 位**（与本地相同；API `POST /api/admin/password` 亦校验）
 - 生产勿依赖 Vercel 存配置；演示后若需长期使用请改 Docker / 自托管
 
@@ -196,7 +196,7 @@ nav-hub/
 │   ├── auth/             # Cookie Session
 │   ├── favicon/          # 站点图标抓取
 │   ├── seed/             # 首次灌库 seed.json
-│   ├── static/dist/      # 嵌入的前端构建产物（勿手改）
+│   ├── static/dist/      # go:embed；仓库仅占位，构建后才有完整 SPA
 │   ├── store/            # SQLite 读写
 │   └── wallpaper/        # 壁纸代理
 ├── web/                  # React + Vite 前端
@@ -207,7 +207,7 @@ nav-hub/
 └── Makefile
 ```
 
-`internal/static/dist/` 由 `make build-web` 生成（供本地纯 `go build` 的 `go:embed`，可入库作为兜底）；**Vercel** 与 **Docker** 部署时都会在云端/镜像内重新构建前端并覆盖。
+`internal/static/dist/`：仓库只保留占位 `index.html`（满足 `go:embed`）；完整前端由 `make build-web`、Docker 或 Vercel 生成，**不要手改、不必提交构建产物**。
 
 ---
 
