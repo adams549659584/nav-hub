@@ -3,6 +3,17 @@ import * as Icons from 'lucide-react';
 import { SEARCH_ENGINES } from '../utils/defaultData';
 import { shortcutMatchesQuery } from '../utils/matchText';
 import { shortcutBelongsTo } from '../utils/categories';
+import ShortcutListIcon, { NAV_LIST_ITEM_STYLES } from './ShortcutListIcon';
+
+function formatSuggestHost(url) {
+  if (!url) return '';
+  try {
+    const u = new URL(url.startsWith('http') ? url : `https://${url}`);
+    return u.hostname + (u.pathname && u.pathname !== '/' ? u.pathname : '');
+  } catch {
+    return String(url).replace(/^https?:\/\//, '').slice(0, 48);
+  }
+}
 
 export default function SearchBar({
   currentEngineId,
@@ -280,28 +291,23 @@ export default function SearchBar({
               <Icons.X size={16} />
             </button>
           )}
+          {typeof onOpenCommand === 'function' && (
+            <button
+              type="button"
+              className="search-cmd-chip"
+              onClick={onOpenCommand}
+              title={`命令面板（${modKey}+K 或 /）`}
+              aria-label="打开命令面板"
+            >
+              <kbd>{modKey}</kbd>
+              <kbd>K</kbd>
+            </button>
+          )}
           <button className="search-action-btn search-submit-btn" onClick={() => handleSearch()} title="搜索">
             <Icons.Search size={18} />
           </button>
         </div>
       </div>
-
-      {/* 命令面板快捷键提示：贴在搜索区下方，与「找东西」心智一致 */}
-      {typeof onOpenCommand === 'function' && (
-        <button
-          type="button"
-          className="search-cmd-hint"
-          onClick={onOpenCommand}
-          title="打开命令面板"
-        >
-          <kbd className="search-cmd-kbd">{modKey}</kbd>
-          <kbd className="search-cmd-kbd">K</kbd>
-          <span className="search-cmd-hint-label">命令面板</span>
-          <span className="search-cmd-hint-sep">·</span>
-          <kbd className="search-cmd-kbd">/</kbd>
-          <span className="search-cmd-hint-label">也可打开</span>
-        </button>
-      )}
 
       {/* Suggestions Popup */}
       {panelVisible && (
@@ -314,7 +320,7 @@ export default function SearchBar({
           {/* Local Shortcuts Section */}
           {matchingLocalShortcuts.length > 0 && (
             <div className="local-shortcuts-suggestion-section">
-              <div className="suggestion-section-title">本地导航</div>
+              <div className="nav-list-section-title">本地导航</div>
               {matchingLocalShortcuts.map((s, i) => {
                 const idx = i;
                 const isActive = activeIndex === idx;
@@ -325,107 +331,105 @@ export default function SearchBar({
                     data-suggest-index={idx}
                     role="option"
                     aria-selected={isActive}
-                    className={`suggestion-item local-shortcut-item${isActive ? ' is-active' : ''}`}
+                    className={`nav-list-item${isActive ? ' is-active' : ''}`}
                     onMouseEnter={() => setActiveIndex(idx)}
                     onClick={() => openLocalShortcut(s)}
                     type="button"
                   >
-                    <Icons.Bookmark size={13} className="local-shortcut-icon" />
-                    <span className="local-shortcut-name">{s.name}</span>
-                    <span className="local-shortcut-url">
-                      {s.url.replace('https://', '').replace('http://', '')}
+                    <ShortcutListIcon shortcut={s} />
+                    <span className="nav-list-item-text">
+                      <span className="nav-list-item-title">{s.name}</span>
+                      <span className="nav-list-item-sub">{formatSuggestHost(s.url)}</span>
                     </span>
                   </button>
                 );
               })}
-              {suggestions.length > 0 && <div className="suggestion-section-divider" />}
             </div>
           )}
 
           {/* Web Search Suggestions */}
-          {suggestions.map((suggestion, i) => {
-            const idx = matchingLocalShortcuts.length + i;
-            const isActive = activeIndex === idx;
-            return (
-              <button
-                key={`web-${suggestion}-${i}`}
-                id={`search-suggest-${idx}`}
-                data-suggest-index={idx}
-                role="option"
-                aria-selected={isActive}
-                className={`suggestion-item${isActive ? ' is-active' : ''}`}
-                onMouseEnter={() => setActiveIndex(idx)}
-                onClick={() => {
-                  onChangeQuery(suggestion);
-                  handleSearch(suggestion);
-                }}
-                type="button"
-              >
-                <Icons.Search size={14} className="suggestion-icon" />
-                <span>{suggestion}</span>
-              </button>
-            );
-          })}
+          {suggestions.length > 0 && (
+            <div className="web-suggestions-section">
+              <div className="nav-list-section-title">网页搜索</div>
+              {suggestions.map((suggestion, i) => {
+                const idx = matchingLocalShortcuts.length + i;
+                const isActive = activeIndex === idx;
+                return (
+                  <button
+                    key={`web-${suggestion}-${i}`}
+                    id={`search-suggest-${idx}`}
+                    data-suggest-index={idx}
+                    role="option"
+                    aria-selected={isActive}
+                    className={`nav-list-item${isActive ? ' is-active' : ''}`}
+                    onMouseEnter={() => setActiveIndex(idx)}
+                    onClick={() => {
+                      onChangeQuery(suggestion);
+                      handleSearch(suggestion);
+                    }}
+                    type="button"
+                  >
+                    <span className="nav-list-action-icon">
+                      <Icons.Search size={15} style={{ opacity: 0.9 }} />
+                    </span>
+                    <span className="nav-list-item-text">
+                      <span className="nav-list-item-title">{suggestion}</span>
+                      <span className="nav-list-item-sub">使用当前搜索引擎</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
       <style>{`
+        ${NAV_LIST_ITEM_STYLES}
+
         .search-bar-wrapper {
           position: relative;
           width: 560px;
           max-width: 90%;
           margin: 40px auto 48px auto;
           z-index: 30;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
         }
 
-        .search-cmd-hint {
-          margin-top: 12px;
+        .search-cmd-chip {
           display: inline-flex;
           align-items: center;
-          gap: 5px;
-          padding: 4px 10px;
-          border: none;
-          border-radius: 999px;
-          background: transparent;
-          color: rgba(255, 255, 255, 0.38);
-          font-size: 11.5px;
-          cursor: pointer;
-          transition: color 0.2s, background 0.2s;
-          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-        }
-
-        .search-cmd-hint:hover {
-          color: rgba(255, 255, 255, 0.72);
-          background: rgba(255, 255, 255, 0.06);
-        }
-
-        .search-cmd-kbd {
-          font-family: inherit;
-          font-size: 10.5px;
-          font-weight: 500;
-          line-height: 1;
-          padding: 3px 6px;
-          border-radius: 5px;
-          background: rgba(0, 0, 0, 0.28);
+          gap: 3px;
+          height: 26px;
+          padding: 0 7px;
+          margin-right: 2px;
           border: 1px solid rgba(255, 255, 255, 0.12);
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.06);
+          color: rgba(255, 255, 255, 0.42);
+          cursor: pointer;
+          transition: color 0.15s, background 0.15s, border-color 0.15s;
+        }
+
+        .search-cmd-chip:hover {
+          color: rgba(255, 255, 255, 0.85);
+          background: rgba(255, 255, 255, 0.12);
+          border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .search-cmd-chip kbd {
+          font-family: inherit;
+          font-size: 10px;
+          font-weight: 600;
+          line-height: 1;
+          padding: 0;
+          border: none;
+          background: none;
           color: inherit;
-          min-width: 1.1em;
-          text-align: center;
-        }
-
-        .search-cmd-hint-label {
-          letter-spacing: 0.02em;
-        }
-
-        .search-cmd-hint-sep {
-          opacity: 0.5;
-          margin: 0 1px;
         }
 
         .search-bar-inner {
+          width: 100%;
+          box-sizing: border-box;
           display: flex;
           align-items: center;
           height: 52px;
@@ -591,84 +595,11 @@ export default function SearchBar({
           to { transform: translateY(0); opacity: 1; }
         }
 
-        .suggestion-item {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          background: none;
-          border: none;
-          width: 100%;
-          box-sizing: border-box;
-          padding: 10px 12px;
-          color: rgba(255, 255, 255, 0.85);
-          text-align: left;
-          font-size: 13.5px;
-          cursor: pointer;
-          border-radius: 10px;
-          transition: background-color 0.15s;
-          flex-shrink: 0;
-        }
-
-        .suggestion-item:hover,
-        .suggestion-item.is-active {
-          background: rgba(255, 255, 255, 0.1);
-          color: white;
-        }
-
-        .suggestion-item.is-active {
-          background: rgba(59, 130, 246, 0.28);
-          box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.45);
-        }
-
-        .suggestion-icon {
-          color: rgba(255, 255, 255, 0.4);
-        }
-
-        .local-shortcuts-suggestion-section {
+        .local-shortcuts-suggestion-section,
+        .web-suggestions-section {
           display: flex;
           flex-direction: column;
           gap: 2px;
-        }
-
-        .suggestion-section-title {
-          font-size: 10px;
-          font-weight: 600;
-          color: rgba(255, 255, 255, 0.4);
-          padding: 6px 14px 4px 14px;
-          text-transform: uppercase;
-          letter-spacing: 0.5px;
-        }
-
-        .local-shortcut-item {
-          display: flex;
-          align-items: center;
-          width: 100%;
-        }
-
-        .local-shortcut-icon {
-          color: #10b981;
-          flex-shrink: 0;
-        }
-
-        .local-shortcut-name {
-          font-weight: 500;
-          color: #fff;
-          margin-right: 8px;
-        }
-
-        .local-shortcut-url {
-          font-size: 11px;
-          color: rgba(255, 255, 255, 0.4);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-          max-width: 280px;
-        }
-
-        .suggestion-section-divider {
-          height: 1px;
-          background: rgba(255, 255, 255, 0.08);
-          margin: 6px 8px;
         }
       `}</style>
     </div>

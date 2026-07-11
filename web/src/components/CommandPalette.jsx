@@ -2,13 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import * as Icons from 'lucide-react';
 import { SEARCH_ENGINES } from '../utils/defaultData';
 import { buildCommandSections, looksLikeUrl, normalizeOpenUrl } from '../utils/commandItems';
-
-function tileTextColor(bgColor) {
-  if (!bgColor) return '#fff';
-  const clean = bgColor.toLowerCase().trim();
-  if (clean === '#ffffff' || clean === '#fff' || clean === 'white') return '#1e293b';
-  return '#fff';
-}
+import ShortcutListIcon, { NAV_LIST_ITEM_STYLES } from './ShortcutListIcon';
 
 export default function CommandPalette({
   open,
@@ -194,7 +188,7 @@ export default function CommandPalette({
           ) : (
             sections.map((sec) => (
               <div key={sec.id} className="cmd-palette-section">
-                <div className="cmd-palette-section-title">{sec.title}</div>
+                <div className="nav-list-section-title">{sec.title}</div>
                 {sec.items.map((item) => {
                   runningIndex += 1;
                   const idx = runningIndex;
@@ -204,15 +198,15 @@ export default function CommandPalette({
                       key={item.id}
                       type="button"
                       data-cmd-index={idx}
-                      className={`cmd-palette-item${active ? ' is-active' : ''}`}
+                      className={`nav-list-item${active ? ' is-active' : ''}`}
                       onMouseEnter={() => setActiveIndex(idx)}
                       onClick={() => runItem(item)}
                     >
-                      <span className="cmd-palette-item-icon">{renderIcon(item)}</span>
-                      <span className="cmd-palette-item-text">
-                        <span className="cmd-palette-item-title">{item.title}</span>
+                      {renderIcon(item)}
+                      <span className="nav-list-item-text">
+                        <span className="nav-list-item-title">{item.title}</span>
                         {item.subtitle && (
-                          <span className="cmd-palette-item-sub">{item.subtitle}</span>
+                          <span className="nav-list-item-sub">{item.subtitle}</span>
                         )}
                       </span>
                       {item.primary && <span className="cmd-palette-badge">默认</span>}
@@ -243,6 +237,8 @@ export default function CommandPalette({
       </div>
 
       <style>{`
+        ${NAV_LIST_ITEM_STYLES}
+
         .cmd-palette-overlay {
           position: fixed;
           inset: 0;
@@ -334,87 +330,6 @@ export default function CommandPalette({
           margin-bottom: 6px;
         }
 
-        .cmd-palette-section-title {
-          padding: 8px 10px 4px;
-          font-size: 11px;
-          font-weight: 600;
-          letter-spacing: 0.04em;
-          text-transform: uppercase;
-          color: rgba(255, 255, 255, 0.35);
-        }
-
-        .cmd-palette-item {
-          width: 100%;
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 9px 10px;
-          border: none;
-          border-radius: 10px;
-          background: transparent;
-          color: rgba(255, 255, 255, 0.9);
-          text-align: left;
-          cursor: pointer;
-          transition: background 0.12s ease;
-        }
-
-        .cmd-palette-item.is-active,
-        .cmd-palette-item:hover {
-          background: rgba(59, 130, 246, 0.22);
-        }
-
-        .cmd-palette-item-icon {
-          width: 28px;
-          height: 28px;
-          flex-shrink: 0;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border-radius: 8px;
-          overflow: hidden;
-          background: rgba(255, 255, 255, 0.08);
-        }
-
-        .cmd-palette-fav {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-
-        .cmd-palette-letter {
-          width: 100%;
-          height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 12px;
-          font-weight: 700;
-        }
-
-        .cmd-palette-item-text {
-          flex: 1;
-          min-width: 0;
-          display: flex;
-          flex-direction: column;
-          gap: 2px;
-        }
-
-        .cmd-palette-item-title {
-          font-size: 13.5px;
-          font-weight: 500;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
-        .cmd-palette-item-sub {
-          font-size: 11.5px;
-          color: rgba(255, 255, 255, 0.4);
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-
         .cmd-palette-badge {
           font-size: 10px;
           padding: 2px 6px;
@@ -430,7 +345,7 @@ export default function CommandPalette({
           flex-shrink: 0;
         }
 
-        .cmd-palette-item.is-active .cmd-palette-enter-hint {
+        .nav-list-item.is-active .cmd-palette-enter-hint {
           opacity: 1;
         }
 
@@ -460,26 +375,16 @@ export default function CommandPalette({
 
 function renderIcon(item) {
   if (item.type === 'shortcut' && item.shortcut) {
-    const s = item.shortcut;
-    if (s.favicon) {
-      return <img src={s.favicon} alt="" className="cmd-palette-fav" />;
-    }
-    return (
-      <span
-        className="cmd-palette-letter"
-        style={{
-          backgroundColor: s.bgColor || 'rgba(255,255,255,0.12)',
-          color: tileTextColor(s.bgColor),
-        }}
-      >
-        {s.letter || (s.name || '?').charAt(0)}
-      </span>
-    );
+    return <ShortcutListIcon shortcut={item.shortcut} />;
   }
 
   const name = item.icon || iconForType(item.type);
   const Cmp = Icons[name] || Icons.Sparkles;
-  return <Cmp size={15} style={{ opacity: 0.85 }} />;
+  return (
+    <span className="nav-list-action-icon">
+      <Cmp size={15} style={{ opacity: 0.9 }} />
+    </span>
+  );
 }
 
 function iconForType(type) {
