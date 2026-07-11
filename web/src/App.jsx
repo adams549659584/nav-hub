@@ -9,6 +9,7 @@ import CalendarWidget from './components/Widgets/CalendarWidget';
 import QuoteFooter from './components/QuoteFooter';
 import LoginModal from './components/LoginModal';
 import ConfirmModal from './components/ConfirmModal';
+import CommandPalette from './components/CommandPalette';
 import * as Icons from 'lucide-react';
 
 import {
@@ -62,6 +63,8 @@ export default function App() {
   const [categoryToEdit, setCategoryToEdit] = useState(null);
   /** 统一删除确认弹窗 */
   const [confirmDialog, setConfirmDialog] = useState(null);
+  /** 命令面板 Cmd/Ctrl+K */
+  const [isCommandOpen, setIsCommandOpen] = useState(false);
   /** 已完成加载的壁纸 key；与当前 key 不同则显示 loading */
   const [wallpaperLoadedKey, setWallpaperLoadedKey] = useState('');
 
@@ -133,6 +136,47 @@ export default function App() {
   useEffect(() => {
     if (!isAdmin) setIsEditing(false);
   }, [isAdmin]);
+
+  // 命令面板：⌘/Ctrl+K；非输入框时按 / 打开
+  useEffect(() => {
+    const isTypingTarget = (el) => {
+      if (!el || !(el instanceof Element)) return false;
+      const tag = el.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return true;
+      if (el.isContentEditable) return true;
+      return !!el.closest('[contenteditable="true"]');
+    };
+
+    const hasBlockingOverlay = () =>
+      !!document.querySelector(
+        '.modal-overlay, .drawer-overlay, .cmd-palette-overlay'
+      );
+
+    const onKeyDown = (e) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && (e.key === 'k' || e.key === 'K')) {
+        // 已有其它弹层时：若命令面板开着则关闭，否则不抢
+        if (isCommandOpen) {
+          e.preventDefault();
+          setIsCommandOpen(false);
+          return;
+        }
+        if (document.querySelector('.modal-overlay, .drawer-overlay')) return;
+        e.preventDefault();
+        setIsCommandOpen(true);
+        return;
+      }
+      if (e.key === '/' && !mod && !e.altKey) {
+        if (isTypingTarget(e.target)) return;
+        if (hasBlockingOverlay()) return;
+        e.preventDefault();
+        setIsCommandOpen(true);
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isCommandOpen]);
 
   // 浏览器标签标题与 meta description
   useEffect(() => {
@@ -587,6 +631,7 @@ export default function App() {
           onChangeQuery={setSearchQuery}
           shortcuts={shortcuts}
           activeCategoryId={activeCategoryId}
+          onOpenCommand={() => setIsCommandOpen(true)}
         />
 
         <Dashboard
@@ -664,6 +709,53 @@ export default function App() {
         danger
         onConfirm={confirmDialog?.onConfirm}
         onClose={() => setConfirmDialog(null)}
+      />
+
+      <CommandPalette
+        open={isCommandOpen}
+        onClose={() => setIsCommandOpen(false)}
+        shortcuts={shortcuts}
+        categories={categories}
+        settings={settings}
+        isAdmin={isAdmin}
+        isEditing={isEditing}
+        onOpenShortcut={(s) => {
+          if (s?.url) window.open(s.url, '_blank', 'noopener,noreferrer');
+        }}
+        onSearch={(engine, q) => {
+          if (!engine?.url || !q) return;
+          window.open(
+            `${engine.url}${encodeURIComponent(q)}`,
+            '_blank',
+            'noopener,noreferrer'
+          );
+        }}
+        onOpenUrl={(url) => {
+          if (!url) return;
+          const href = /^https?:\/\//i.test(url) ? url : `https://${url}`;
+          window.open(href, '_blank', 'noopener,noreferrer');
+        }}
+        onGotoCategory={(id) => setActiveCategoryId(id)}
+        onOpenSettings={() => {
+          if (isAdmin) setIsSettingsOpen(true);
+          else setIsLoginOpen(true);
+        }}
+        onToggleEdit={() => {
+          if (isAdmin) setIsEditing((v) => !v);
+        }}
+        onAddShortcut={() => {
+          if (isAdmin) handleAddShortcutClick();
+        }}
+        onAddCategory={() => {
+          if (isAdmin) {
+            setCategoryToEdit(null);
+            setIsAddCategoryOpen(true);
+          }
+        }}
+        onLogin={() => setIsLoginOpen(true)}
+        onLogout={() => {
+          if (isAdmin) handleLogout();
+        }}
       />
 
       <style>{`

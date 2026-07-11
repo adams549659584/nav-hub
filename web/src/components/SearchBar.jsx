@@ -12,6 +12,7 @@ export default function SearchBar({
   onChangeQuery,
   shortcuts = [],
   activeCategoryId,
+  onOpenCommand,
 }) {
   const [isOpenEngineMenu, setIsOpenEngineMenu] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
@@ -20,6 +21,13 @@ export default function SearchBar({
   const menuRef = useRef(null);
   const searchContainerRef = useRef(null);
   const listRef = useRef(null);
+
+  const modKey = useMemo(() => {
+    if (typeof navigator === 'undefined') return 'Ctrl';
+    return /Mac|iPhone|iPad|iPod/i.test(navigator.platform || navigator.userAgent || '')
+      ? '⌘'
+      : 'Ctrl';
+  }, []);
 
   const currentEngine = SEARCH_ENGINES.find((e) => e.id === currentEngineId) || SEARCH_ENGINES[0];
 
@@ -278,6 +286,23 @@ export default function SearchBar({
         </div>
       </div>
 
+      {/* 命令面板快捷键提示：贴在搜索区下方，与「找东西」心智一致 */}
+      {typeof onOpenCommand === 'function' && (
+        <button
+          type="button"
+          className="search-cmd-hint"
+          onClick={onOpenCommand}
+          title="打开命令面板"
+        >
+          <kbd className="search-cmd-kbd">{modKey}</kbd>
+          <kbd className="search-cmd-kbd">K</kbd>
+          <span className="search-cmd-hint-label">命令面板</span>
+          <span className="search-cmd-hint-sep">·</span>
+          <kbd className="search-cmd-kbd">/</kbd>
+          <span className="search-cmd-hint-label">也可打开</span>
+        </button>
+      )}
+
       {/* Suggestions Popup */}
       {panelVisible && (
         <div
@@ -351,6 +376,53 @@ export default function SearchBar({
           max-width: 90%;
           margin: 40px auto 48px auto;
           z-index: 30;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .search-cmd-hint {
+          margin-top: 12px;
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 4px 10px;
+          border: none;
+          border-radius: 999px;
+          background: transparent;
+          color: rgba(255, 255, 255, 0.38);
+          font-size: 11.5px;
+          cursor: pointer;
+          transition: color 0.2s, background 0.2s;
+          text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+        }
+
+        .search-cmd-hint:hover {
+          color: rgba(255, 255, 255, 0.72);
+          background: rgba(255, 255, 255, 0.06);
+        }
+
+        .search-cmd-kbd {
+          font-family: inherit;
+          font-size: 10.5px;
+          font-weight: 500;
+          line-height: 1;
+          padding: 3px 6px;
+          border-radius: 5px;
+          background: rgba(0, 0, 0, 0.28);
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          color: inherit;
+          min-width: 1.1em;
+          text-align: center;
+        }
+
+        .search-cmd-hint-label {
+          letter-spacing: 0.02em;
+        }
+
+        .search-cmd-hint-sep {
+          opacity: 0.5;
+          margin: 0 1px;
         }
 
         .search-bar-inner {
