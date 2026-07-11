@@ -22,14 +22,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 目录结构
 
 - `web/` — React + Vite 前端（原根目录前端已迁入）
-- `cmd/nav-hub/` — 本地 / Docker Go 入口
-- `cmd/server/` — Vercel Go Framework Preset 入口（平台固定探测该路径）
+- `cmd/nav-hub/` — 本地 / Docker / `Dockerfile.vercel` 入口
 - `internal/store` — SQLite 与配置读写
 - `internal/auth` — Cookie Session
 - `internal/seed` — `seed.json` 首次灌库
-- `internal/static/dist/` — go:embed 目录（仓库仅占位 index.html；完整 SPA 由 `make build-web` / Docker / Vercel 生成，不提交）
-- `scripts/vercel-build.sh` — Vercel `buildCommand`：前端 + `go build`（勿在 vercel.json 使用 legacy `builds`）
-- `Dockerfile` / `docker-compose.yml` — 单镜像部署
+- `internal/static/dist/` — go:embed（仓库仅占位；Docker / Dockerfile.vercel / make build-web 生成完整 SPA）
+- `Dockerfile.vercel` — Vercel 容器部署（镜像内编前端，Fluid compute）
+- `Dockerfile` / `docker-compose.yml` — 自托管单镜像
 - `.github/workflows/docker-ghcr.yml` — 推送到 GHCR（BuildKit GHA cache）
 
 ## 架构
