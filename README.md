@@ -211,9 +211,9 @@ nav-hub/
 ├── .vscode/              # 调试与推荐扩展
 ├── Dockerfile
 ├── docker-compose.yml
-├── vercel.json
 └── Makefile
 ```
+
 
 `internal/static/dist/`：仓库只保留占位 `index.html`（满足 `go:embed`）；完整前端由 `make build-web`、Docker 或 Vercel 生成，**不要手改、不必提交构建产物**。
 
