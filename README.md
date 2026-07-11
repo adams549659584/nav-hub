@@ -101,11 +101,18 @@ docker compose up -d
 
 ### Vercel 一键部署
 
-> ⭐ **仅适合演示 / 试用**。Vercel 无持久磁盘，SQLite 落在 `/tmp`，**冷启动、新实例或重新部署后数据会丢失**。长期自托管请用 Docker 或本地二进制。
+> ⭐ **仅适合演示 / 试用**。容器无持久磁盘，SQLite 落在 `/tmp`，**冷启动、新实例或重新部署后数据会丢失**。长期自托管请用 Docker 或本地二进制。
 
 一键部署，点这里 => [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/adams549659584/nav-hub&project-name=nav-hub&repository-name=nav-hub&env=SESSION_SECRET,ADMIN_USER,ADMIN_PASSWORD&envDescription=%E7%94%9F%E4%BA%A7%E5%8A%A1%E5%BF%85%E4%BF%AE%E6%94%B9%20SESSION_SECRET%20%E4%B8%8E%E7%AE%A1%E7%90%86%E5%91%98%E5%AF%86%E7%A0%81&envLink=https://github.com/adams549659584/nav-hub#%E7%8E%AF%E5%A2%83%E5%8F%98%E9%87%8F)
 
-部署后在 Vercel 项目 **Settings → Environment Variables** 中配置（与本地含义相同）：
+**方式：根目录 [`Dockerfile.vercel`](./Dockerfile.vercel)**（[Running Docker on Vercel](https://vercel.com/kb/guide/docker)）
+
+1. 检测 `Dockerfile.vercel` → 构建 OCI 镜像（多阶段：`pnpm build` → `go:embed` → 二进制）  
+2. 推到 **Vercel Container Registry (VCR)**  
+3. 部署到 **Fluid compute**，流量自动路由到容器  
+4. 进程监听平台 **`$PORT`**（`server.ListenAndServe`）
+
+环境变量（**Settings → Environment Variables**）：
 
 | 变量 | 建议 |
 |------|------|
@@ -115,11 +122,10 @@ docker compose up -d
 
 说明与限制：
 
-- 仓库内已含 [`vercel.json`](./vercel.json) 与 [`api/index.go`](./api/index.go)（Go Serverless 入口）
-- 未设置 `DATABASE_DSN` 时，在 Vercel 上自动使用 `file:/tmp/nav-hub.db?...`（**不持久**）
-- **前端构建**：Vercel 使用 **Go Framework Preset**（**不要**在 `vercel.json` 里写 legacy `builds`，否则会忽略 `buildCommand`，见 [Unused build settings](https://vercel.com/docs/errors/error-list#unused-build-and-development-settings)）。`buildCommand` 跑 `scripts/vercel-build.sh`：先 `pnpm build` 写入 `internal/static/dist`，再 `go build`。Docker 在镜像内构建。**改 `web/` 后只需推送源码**。本地纯 `go build` 前请先 `make build-web`。
-- 部署后在设置页改密时，**新密码至少 6 位**（与本地相同；API `POST /api/admin/password` 亦校验）
-- 生产勿依赖 Vercel 存配置；演示后若需长期使用请改 Docker / 自托管
+- 默认 `DATABASE_DSN=file:/tmp/nav-hub.db?...`（**不持久**）  
+- **改 `web/` 后只需推送源码**，镜像内会重新构建前端；不必提交 dist  
+- 设置页改密时新密码至少 6 位  
+- 生产勿依赖 Vercel 存配置；长期使用请 Docker / 自托管
 
 ### 本地二进制
 
