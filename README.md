@@ -1,18 +1,70 @@
 # nav-hub
 
-极简卡片式浏览器起始页（「iTab 新标签页」）。
+**高颜值、极简、可自托管的卡片式导航起始页。**
 
-单二进制部署：**Go** 提供静态 SPA 与 `/api`，**SQLite** 持久化配置。访客只读；管理员登录后可编辑分类、快捷方式与全局设置。
+像新标签页一样打开，像命令面板一样秒搜，像浏览器一样管理你的站点。  
+单二进制 + SQLite，Docker 一键部署；访客即开即用，管理员登录后随意改。
 
 镜像：[`ghcr.io/adams549659584/nav-hub`](https://github.com/adams549659584/nav-hub/pkgs/container/nav-hub)
 
-## 功能概览
+---
 
-- 分类侧边栏 + 卡片式快捷方式（可调尺寸、颜色、自定义图标）
-- 搜索栏（多搜索引擎）
-- 壁纸、模糊与亮度等全局设置
-- 日历小组件、底部名言
-- 访客公开只读；管理员 Cookie Session 鉴权后写回服务端
+## 为什么选 nav-hub
+
+| | |
+|--|--|
+| **开箱即用** | 访客零登录浏览；管理员 Cookie 登录即可编排全站 |
+| **部署极简** | 一个 Docker 镜像 / 一个 Go 二进制，数据落在 SQLite |
+| **好看耐看** | 毛玻璃 UI、壁纸库、可调布局与站点品牌 |
+| **键盘友好** | `⌘/Ctrl+K` 命令面板，导航 / 搜索 / 操作一触即达 |
+| **打开方式灵活** | 新标签或站内预览（手机 / 小屏 PC 浮窗，可最小化托盘） |
+
+---
+
+## 功能亮点
+
+### 导航与分类
+
+- **多分类侧栏**，支持「全部」视图；一个链接可归属多个分类  
+- **拖拽排序**：编辑布局下重排导航与分类，拖到侧栏即可归类  
+- **卡片式快捷方式**：自定义名称、颜色、字母 / 上传图 / SVG / 自动抓取站点图标  
+- **长名称友好**：省略展示，悬停展开完整标题  
+
+### 命令面板（`⌘K` / `Ctrl+K`，或 `/`）
+
+- **秒搜本地导航**（支持拼音与首字母）  
+- **多引擎搜索**：Google / 百度 / Bing / GitHub / DuckDuckGo，品牌图标一目了然  
+- **URL 直达**、切换分类、打开设置 / 编辑布局 / 添加链接 等操作  
+- 层级最高，站内预览打开时也能随时唤起  
+
+### 搜索栏
+
+- 顶栏搜索 + 本地导航联想（图标与命令面板统一风格）  
+- 任意用户可切换当前引擎；管理员可在设置中指定默认引擎  
+
+### 站内预览
+
+- 链接可设 **新标签页** 或 **站内预览**  
+- 视口：**手机** / **电脑（1366×768）**  
+- **最小化到右下角托盘**（站内预览），iframe 不卸载、点一下即可恢复  
+- 多窗口可滚动列表；站点图标 + 名称省略  
+
+### 外观与氛围
+
+- **壁纸库**：纯色 / 必应 / 动态 / Wallhaven / Deepin / 自定义 URL  
+- 模糊、亮度、遮罩可调  
+- 网格列数、间距、图标大小与圆角、内容最大宽度  
+- 站点标题、描述、侧栏 Logo 文案与渐变色  
+- 顶部时钟日历、底部每日一言（可开关）  
+
+### 管理与安全
+
+- 访客只读；管理员 Session 鉴权  
+- **设置中修改密码**（环境变量仅首次初始化账号）  
+- 密码框即时显示 / 隐藏切换  
+- 配置整体 `PUT` 持久化，改完自动写回  
+
+---
 
 ## 技术栈
 
@@ -21,7 +73,9 @@
 | 前端 | React 19、Vite、lucide-react、Oxlint |
 | 后端 | Go 1.22+、chi、bcrypt Session Cookie |
 | 存储 | SQLite（`modernc.org/sqlite`，纯 Go） |
-| 部署 | Docker 单镜像 / 本地二进制，GHCR 自动构建 |
+| 部署 | Docker 单镜像 / 本地二进制，GHCR 多架构构建 |
+
+---
 
 ## 快速开始
 
@@ -32,7 +86,7 @@
 docker compose up -d
 ```
 
-浏览器打开 <http://localhost:8080>。默认管理员见 `docker-compose.yml` 中的环境变量。
+浏览器打开 <http://localhost:8080>。默认管理员见 `docker-compose.yml`。
 
 数据卷：`nav-hub-data` → 容器内 `/data/app.db`。
 
@@ -45,57 +99,59 @@ make build          # 构建前端并嵌入，输出 bin/nav-hub
 ./bin/nav-hub       # 默认监听 :8080，数据库 ./data/app.db
 ```
 
-首次启动若库为空，会从 `internal/seed/seed.json` 灌入默认配置；若无管理员用户，则用环境变量中的账号密码创建（仅一次）。
+首次启动若库为空，会从 `internal/seed/seed.json` 灌入默认配置；若无管理员，则用环境变量创建（仅一次）。
 
 ### 开发模式（前后端分离）
-
-需要两个终端：
 
 ```bash
 make dev-api        # Go API → http://localhost:8080
 make dev-web        # Vite → http://localhost:5173（/api 代理到 8080）
 ```
 
-开发时请打开 **Vite 地址**（5173），不要只开 8080 的旧嵌入资源。
+请打开 **Vite 地址（5173）** 做前端开发。
 
 #### VS Code / Cursor 调试
-
-仓库已包含 `.vscode/launch.json`：
 
 | 配置 | 说明 |
 |------|------|
 | **Full Stack (API + Vite)** | 同时调试后端 + 启动前端（推荐） |
-| **Debug API (Go)** | 仅后端，断点调试 |
-| **Chrome: Frontend (Vite)** | 前端 Chrome 源码映射调试 |
+| **Debug API (Go)** | 仅后端 |
+| **Chrome: Frontend (Vite)** | 前端源码映射 |
 
-需安装推荐扩展：Go、`oxc.oxc-vscode`（见 `.vscode/extensions.json`）。
+推荐扩展见 `.vscode/extensions.json`。
+
+---
 
 ## 环境变量
 
 | 变量 | 默认（本地） | 说明 |
 |------|----------------|------|
 | `ADDR` | `:8080` | 监听地址 |
-| `DATABASE_DSN` | `file:./data/app.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)` | SQLite DSN；Docker 镜像内为 `file:/data/app.db?...` |
+| `DATABASE_DSN` | `file:./data/app.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)` | SQLite DSN；Docker 内为 `file:/data/app.db?...` |
 | `ADMIN_USER` | `admin` | 首次初始化管理员用户名 |
 | `ADMIN_PASSWORD` | `admin` | 首次初始化管理员密码 |
 | `SESSION_SECRET` | `dev-secret-change-me` | Session 签名密钥，**生产务必修改** |
 
-说明：
+- `ADMIN_*` **仅在库中尚无管理员时**写入；之后请用设置页改密。  
+- 生产请使用强随机 `SESSION_SECRET` 与独立密码。
 
-- `ADMIN_*` **仅在库中尚无管理员时**写入；之后改环境变量不会更新已有密码。
-- 生产环境请使用强随机 `SESSION_SECRET` 与独立管理员密码。
+---
 
 ## API
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
 | `GET` | `/api/public/config` | 公开配置：`{ categories, shortcuts, settings }` |
-| `GET` | `/api/public/wallpapers/sources` | 壁纸库分类：纯色 / 必应 / 动态 / Wallhaven / Deepin / 自定义 |
-| `GET` | `/api/public/wallpapers?source=&page=&size=&q=` | 壁纸列表（服务端代理 Bing / Wallhaven 等） |
+| `GET` | `/api/public/favicon?url=` | 抓取站点图标（优先 SVG），返回 data URL |
+| `GET` | `/api/public/wallpapers/sources` | 壁纸库分类 |
+| `GET` | `/api/public/wallpapers?source=&page=&size=&q=` | 壁纸列表（服务端代理） |
 | `GET` | `/api/auth/me` | `{ admin: boolean }` |
 | `POST` | `/api/auth/login` | `{ username, password }` → Set-Cookie |
 | `POST` | `/api/auth/logout` | 清除 Session |
-| `PUT` | `/api/admin/config` | 需登录；整包 JSON，与前端导出格式一致 |
+| `POST` | `/api/admin/password` | 需登录；修改管理员密码 |
+| `PUT` | `/api/admin/config` | 需登录；整包 JSON 写回 |
+
+---
 
 ## 目录结构
 
@@ -104,9 +160,11 @@ nav-hub/
 ├── cmd/nav-hub/          # Go 入口
 ├── internal/
 │   ├── auth/             # Cookie Session
+│   ├── favicon/          # 站点图标抓取
 │   ├── seed/             # 首次灌库 seed.json
 │   ├── static/dist/      # 嵌入的前端构建产物（勿手改）
-│   └── store/            # SQLite 读写
+│   ├── store/            # SQLite 读写
+│   └── wallpaper/        # 壁纸代理
 ├── web/                  # React + Vite 前端
 ├── .vscode/              # 调试与推荐扩展
 ├── Dockerfile
@@ -114,7 +172,9 @@ nav-hub/
 └── Makefile
 ```
 
-`internal/static/dist/` 由 `make build-web` 或 Docker 构建生成；Git 中仅保留占位 `index.html`。
+`internal/static/dist/` 由 `make build-web` 或 Docker 构建生成。
+
+---
 
 ## 常用命令
 
@@ -127,24 +187,30 @@ nav-hub/
 | `make docker` | 构建本地镜像 `nav-hub:local` |
 | `cd web && pnpm lint` | Oxlint |
 
+---
+
 ## 数据模型（简要）
 
-| 实体 | 主键 | 说明 |
-|------|------|------|
-| categories | `id` INTEGER | `code` 稳定标识（如 `common`），`name` / `icon` / `sort_order` |
-| shortcuts | `id` INTEGER | `name` / `url` / `letter` / `bg_color` / `favicon` / `sort_order` |
-| shortcut_categories | `(shortcut_id, category_id)` | 多对多：一个导航可属多个分类；**无分类**的导航仅在侧栏「全部」中显示 |
-| settings | 单行 JSON | 全局 UI 偏好 |
+| 实体 | 说明 |
+|------|------|
+| categories | `id` / `code` / `name` / `icon` / `sort_order`；`common` 不可删 |
+| shortcuts | 名称、URL、图标、`openMode`（`tab` \| `iframe`）、`iframeDevice`（`mobile` \| `desktop`）等 |
+| shortcut_categories | 多对多；无分类的导航仅在「全部」中显示 |
+| settings | 单行 JSON：布局、壁纸、品牌、开关等 |
 
-公开 API 返回 `{ categories, shortcuts, settings }`；快捷方式字段为 `categoryIds: number[]`（可为空数组）、`bgColor` 等。侧栏顶部有「全部」；默认选中 `code === 'common'` 的常用推荐。
+侧栏默认选中 `code === 'common'` 的常用推荐。
 
-## 使用注意
+---
 
-- 分类 **code** 为 `common` 的「常用推荐」不可删除。
-- 自定义快捷方式图标建议 ≤ **200KB**（前端上传限制，过大影响配置体积）。
-- 默认壁纸使用 Unsplash 外链，离线或网络受限环境可改为本地 / 自定义 URL。
-- 管理员修改分类、快捷方式或设置后，前端会 debounce 写回 `PUT /api/admin/config`。
-- 本地已有 v1 库时，启动会自动迁移到 v2 schema；开发可删 `data/app.db` 后重新 seed。
+## 使用提示
+
+- 按 **`⌘K` / `Ctrl+K`**（或 **`/`**）打开命令面板，是最快的找站方式。  
+- 自定义图标建议 ≤ **200KB**；支持粘贴 SVG 与自动抓取。  
+- **站内预览**依赖目标站是否允许被 iframe 嵌入；多数大站会拒绝，请改用新标签页。  
+- 管理员改数据后前端会 debounce 写回；已有库启动会自动迁移 schema。  
+- 生产务必改 `SESSION_SECRET` 与管理员密码。
+
+---
 
 ## License
 

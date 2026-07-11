@@ -54,6 +54,15 @@ export default function CommandPalette({
     setActiveIndex(0);
   }, [query]);
 
+  // 列表变短时钳制下标，避免 is-active 对不上
+  useEffect(() => {
+    if (!flat.length) {
+      setActiveIndex(0);
+      return;
+    }
+    setActiveIndex((i) => (i >= flat.length ? flat.length - 1 : i < 0 ? 0 : i));
+  }, [flat.length]);
+
   useEffect(() => {
     if (!open || activeIndex < 0 || !listRef.current) return;
     const el = listRef.current.querySelector(`[data-cmd-index="${activeIndex}"]`);
@@ -202,7 +211,10 @@ export default function CommandPalette({
                       className={`nav-list-item${active ? ' is-active' : ''}${
                         item.type === 'search' ? ' is-search-row' : ''
                       }`}
-                      onMouseEnter={() => setActiveIndex(idx)}
+                      onMouseMove={() => {
+                        // move 而非仅 enter：从键盘切到鼠标时也能立刻对齐单选
+                        if (activeIndex !== idx) setActiveIndex(idx);
+                      }}
                       onClick={() => runItem(item)}
                     >
                       {item.type === 'search' ? (
@@ -251,7 +263,8 @@ export default function CommandPalette({
         .cmd-palette-overlay {
           position: fixed;
           inset: 0;
-          z-index: 200;
+          /* 高于站内预览(220)与托盘(210)，保证命令面板永远在最顶层 */
+          z-index: 300;
           display: flex;
           align-items: flex-start;
           justify-content: center;

@@ -73,7 +73,7 @@ export const NAV_LIST_ITEM_STYLES = `
     flex-shrink: 0;
   }
 
-  .nav-list-item:hover,
+  /* 只用 is-active，避免键盘选中 A 而鼠标仍悬停 B 时出现「双选中」 */
   .nav-list-item.is-active {
     background: rgba(59, 130, 246, 0.22);
     color: #fff;

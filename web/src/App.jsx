@@ -155,28 +155,26 @@ export default function App() {
       return !!el.closest('[contenteditable="true"]');
     };
 
-    const hasBlockingOverlay = () =>
-      !!document.querySelector(
-        '.modal-overlay, .drawer-overlay, .cmd-palette-overlay, .iframe-viewer-overlay'
-      );
+    // 仅登录/设置等表单弹层阻挡；站内预览不挡命令面板（面板 z-index 更高）
+    const hasFormOverlay = () =>
+      !!document.querySelector('.modal-overlay, .drawer-overlay');
 
     const onKeyDown = (e) => {
       const mod = e.metaKey || e.ctrlKey;
       if (mod && (e.key === 'k' || e.key === 'K')) {
-        // 已有其它弹层时：若命令面板开着则关闭，否则不抢
         if (isCommandOpen) {
           e.preventDefault();
           setIsCommandOpen(false);
           return;
         }
-        if (document.querySelector('.modal-overlay, .drawer-overlay')) return;
+        if (hasFormOverlay()) return;
         e.preventDefault();
         setIsCommandOpen(true);
         return;
       }
       if (e.key === '/' && !mod && !e.altKey) {
         if (isTypingTarget(e.target)) return;
-        if (hasBlockingOverlay()) return;
+        if (isCommandOpen || hasFormOverlay()) return;
         e.preventDefault();
         setIsCommandOpen(true);
       }
@@ -410,13 +408,16 @@ export default function App() {
       setIframeSessions((prev) => {
         const exists = prev.find((s) => s.key === key);
         if (exists) {
-          // 已有会话：更新标题/设备偏好并复用
+          // 已有会话：更新标题/图标/设备偏好并复用
           return prev.map((s) =>
             s.key === key
               ? {
                   ...s,
                   title: shortcut.name || shortcut.url,
                   url: shortcut.url,
+                  favicon: shortcut.favicon || '',
+                  letter: shortcut.letter || '',
+                  bgColor: shortcut.bgColor || '',
                   device: s.device || device,
                 }
               : s
@@ -429,6 +430,9 @@ export default function App() {
             id: shortcut.id,
             url: shortcut.url,
             title: shortcut.name || shortcut.url,
+            favicon: shortcut.favicon || '',
+            letter: shortcut.letter || '',
+            bgColor: shortcut.bgColor || '',
             device,
           },
         ];

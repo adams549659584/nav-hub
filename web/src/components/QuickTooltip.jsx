@@ -1,22 +1,28 @@
 import React, { useId, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
+const ARROW = 6;
+const GAP = 8;
+const PAD = 6;
+
 /**
- * 即时悬停提示（替代原生 title，避免浏览器 ~1s 延迟）
+ * 即时悬停提示（替代原生 title）
  *
- * 用法：
- * <QuickTooltip content="关闭">
- *   <button>...</button>
- * </QuickTooltip>
+ * side:
+ * - 'auto'（默认）：按触发器位置自动选边，避免贴边被挤
+ * - 'left' | 'right' | 'top' | 'bottom'：强制方向
  */
 export default function QuickTooltip({
   content,
   children,
-  side = 'left', // left | right | top | bottom
+  side = 'auto',
   delay = 0,
 }) {
   const [visible, setVisible] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
+  const [resolvedSide, setResolvedSide] = useState(
+    side === 'auto' ? 'top' : side
+  );
   const triggerRef = useRef(null);
   const tipRef = useRef(null);
   const timerRef = useRef(null);
@@ -46,46 +52,93 @@ export default function QuickTooltip({
   useLayoutEffect(() => {
     if (!visible || !triggerRef.current) return;
 
+    const place = (preferred, r, tw, th) => {
+      let top = 0;
+      let left = 0;
+      switch (preferred) {
+        case 'right':
+          top = r.top + r.height / 2 - th / 2;
+          left = r.right + GAP;
+          break;
+        case 'left':
+          top = r.top + r.height / 2 - th / 2;
+          left = r.left - tw - GAP;
+          break;
+        case 'bottom':
+          top = r.bottom + GAP;
+          left = r.left + r.width / 2 - tw / 2;
+          break;
+        case 'top':
+        default:
+          top = r.top - th - GAP;
+          left = r.left + r.width / 2 - tw / 2;
+          break;
+      }
+      return { top, left };
+    };
+
+    const fits = (preferred, r, tw, th) => {
+      const { top, left } = place(preferred, r, tw, th);
+      return (
+        left >= PAD &&
+        top >= PAD &&
+        left + tw <= window.innerWidth - PAD &&
+        top + th <= window.innerHeight - PAD
+      );
+    };
+
+    const pickSide = (r, tw, th) => {
+      if (side !== 'auto') return side;
+
+      // 贴右缘 → 优先左侧；贴左缘 → 优先右侧；其余上/下
+      const spaceRight = window.innerWidth - r.right;
+      const spaceLeft = r.left;
+      const spaceTop = r.top;
+      const spaceBottom = window.innerHeight - r.bottom;
+
+      const order = [];
+      if (spaceRight < tw + GAP + 24 || spaceRight < spaceLeft) {
+        order.push('left', 'top', 'bottom', 'right');
+      } else if (spaceLeft < tw + GAP + 24) {
+        order.push('right', 'top', 'bottom', 'left');
+      } else if (spaceTop > spaceBottom) {
+        order.push('top', 'bottom', 'left', 'right');
+      } else {
+        order.push('bottom', 'top', 'left', 'right');
+      }
+
+      for (const s of order) {
+        if (fits(s, r, tw, th)) return s;
+      }
+      // 都不够：选空间最大的边
+      const spaces = [
+        ['left', spaceLeft],
+        ['right', spaceRight],
+        ['top', spaceTop],
+        ['bottom', spaceBottom],
+      ];
+      spaces.sort((a, b) => b[1] - a[1]);
+      return spaces[0][0];
+    };
+
     const update = () => {
       const el = triggerRef.current;
       const tip = tipRef.current;
       if (!el) return;
       const r = el.getBoundingClientRect();
-      const tw = tip?.offsetWidth || 0;
-      const th = tip?.offsetHeight || 0;
-      const gap = 8;
-      let top = 0;
-      let left = 0;
+      const tw = tip?.offsetWidth || 80;
+      const th = tip?.offsetHeight || 28;
+      const chosen = pickSide(r, tw, th);
+      let { top, left } = place(chosen, r, tw, th);
 
-      switch (side) {
-        case 'right':
-          top = r.top + r.height / 2 - th / 2;
-          left = r.right + gap;
-          break;
-        case 'top':
-          top = r.top - th - gap;
-          left = r.left + r.width / 2 - tw / 2;
-          break;
-        case 'bottom':
-          top = r.bottom + gap;
-          left = r.left + r.width / 2 - tw / 2;
-          break;
-        case 'left':
-        default:
-          top = r.top + r.height / 2 - th / 2;
-          left = r.left - tw - gap;
-          break;
-      }
+      top = Math.max(PAD, Math.min(top, window.innerHeight - th - PAD));
+      left = Math.max(PAD, Math.min(left, window.innerWidth - tw - PAD));
 
-      // 视口夹紧
-      const pad = 6;
-      top = Math.max(pad, Math.min(top, window.innerHeight - th - pad));
-      left = Math.max(pad, Math.min(left, window.innerWidth - tw - pad));
+      setResolvedSide(chosen);
       setCoords({ top, left });
     };
 
     update();
-    // 二次测量：tip 挂载后有真实宽高
     requestAnimationFrame(update);
     window.addEventListener('scroll', update, true);
     window.addEventListener('resize', update);
@@ -95,7 +148,6 @@ export default function QuickTooltip({
     };
   }, [visible, side, content]);
 
-  // 给唯一子元素挂 ref / 事件
   const child = React.Children.only(children);
   const trigger = React.cloneElement(child, {
     ref: (node) => {
@@ -120,7 +172,8 @@ export default function QuickTooltip({
       child.props.onBlur?.(e);
       hide();
     },
-    'aria-describedby': visible && content ? tipId : child.props['aria-describedby'],
+    'aria-describedby':
+      visible && content ? tipId : child.props['aria-describedby'],
   });
 
   if (!content) return trigger;
@@ -134,7 +187,7 @@ export default function QuickTooltip({
             ref={tipRef}
             id={tipId}
             role="tooltip"
-            className={`quick-tooltip side-${side}`}
+            className={`quick-tooltip side-${resolvedSide}`}
             style={{ top: coords.top, left: coords.left }}
           >
             {content}
@@ -169,7 +222,6 @@ export default function QuickTooltip({
                 pointer-events: none;
               }
 
-              /* 提示在触发器右侧 → 箭头在左侧指向触发器 */
               .quick-tooltip.side-right .quick-tooltip-arrow {
                 left: -5px;
                 top: 50%;
@@ -178,7 +230,6 @@ export default function QuickTooltip({
                 border-top: none;
               }
 
-              /* 提示在左侧 → 箭头在右侧 */
               .quick-tooltip.side-left .quick-tooltip-arrow {
                 right: -5px;
                 top: 50%;
@@ -187,7 +238,6 @@ export default function QuickTooltip({
                 border-bottom: none;
               }
 
-              /* 提示在上方 → 箭头在底部 */
               .quick-tooltip.side-top .quick-tooltip-arrow {
                 bottom: -5px;
                 left: 50%;
@@ -196,7 +246,6 @@ export default function QuickTooltip({
                 border-top: none;
               }
 
-              /* 提示在下方 → 箭头在顶部 */
               .quick-tooltip.side-bottom .quick-tooltip-arrow {
                 top: -5px;
                 left: 50%;
