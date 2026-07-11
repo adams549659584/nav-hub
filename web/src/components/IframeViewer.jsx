@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import * as Icons from 'lucide-react';
+import QuickTooltip from './QuickTooltip';
 
 /** 悬浮窗尺寸：手机 / 小屏 PC（常见 1366×768） */
 const DEVICES = [
@@ -81,7 +82,6 @@ export default function IframeViewer({
             width: `min(${conf.width}px, calc(100vw - 72px))`,
             height: `min(${conf.height}px, calc(100vh - 24px))`,
           }}
-          title={title || url}
         >
           <div className="iframe-viewer-body">
             {open && loading && <div className="iframe-loading">加载中…</div>}
@@ -107,48 +107,55 @@ export default function IframeViewer({
               {DEVICES.map((d) => {
                 const Icon = Icons[d.icon] || Icons.Monitor;
                 return (
-                  <button
-                    key={d.id}
-                    type="button"
-                    className={`iframe-device-btn${device === d.id ? ' is-active' : ''}`}
-                    onClick={() => switchDevice(d.id)}
-                    title={d.label}
-                  >
-                    <Icon size={15} />
-                  </button>
+                  <QuickTooltip key={d.id} content={d.label} side="right">
+                    <button
+                      type="button"
+                      className={`iframe-device-btn${device === d.id ? ' is-active' : ''}`}
+                      onClick={() => switchDevice(d.id)}
+                      aria-label={d.label}
+                    >
+                      <Icon size={15} />
+                    </button>
+                  </QuickTooltip>
                 );
               })}
             </div>
 
             <div className="iframe-rail-sep" />
 
-            <a
-              className="iframe-tool-btn"
-              href={url}
-              target="_blank"
-              rel="noopener noreferrer"
-              title="新标签打开"
-            >
-              <Icons.ExternalLink size={15} />
-            </a>
+            <QuickTooltip content="新标签打开" side="right">
+              <a
+                className="iframe-tool-btn"
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="新标签打开"
+              >
+                <Icons.ExternalLink size={15} />
+              </a>
+            </QuickTooltip>
             {onMinimize && (
+              <QuickTooltip content="最小化" side="right">
+                <button
+                  type="button"
+                  className="iframe-tool-btn"
+                  onClick={onMinimize}
+                  aria-label="最小化"
+                >
+                  <Icons.Minus size={16} />
+                </button>
+              </QuickTooltip>
+            )}
+            <QuickTooltip content="关闭" side="right">
               <button
                 type="button"
                 className="iframe-tool-btn"
-                onClick={onMinimize}
-                title="最小化"
+                onClick={onClose}
+                aria-label="关闭"
               >
-                <Icons.Minus size={16} />
+                <Icons.X size={16} />
               </button>
-            )}
-            <button
-              type="button"
-              className="iframe-tool-btn"
-              onClick={onClose}
-              title="关闭"
-            >
-              <Icons.X size={16} />
-            </button>
+            </QuickTooltip>
           </div>
         )}
       </div>

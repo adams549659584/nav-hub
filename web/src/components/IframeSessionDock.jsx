@@ -1,5 +1,6 @@
 import React from 'react';
 import * as Icons from 'lucide-react';
+import QuickTooltip from './QuickTooltip';
 
 /**
  * 已最小化的站内预览托盘：点击恢复，可单独关闭。
@@ -16,29 +17,33 @@ export default function IframeSessionDock({ sessions = [], onRestore, onClose })
       <div className="iframe-dock-list">
         {sessions.map((s) => (
           <div key={s.key} className="iframe-dock-item glass-card">
-            <button
-              type="button"
-              className="iframe-dock-main"
-              onClick={() => onRestore?.(s.key)}
-              title={`恢复：${s.title || s.url}`}
-            >
-              <span className="iframe-dock-icon" aria-hidden>
-                {s.device === 'mobile' ? (
-                  <Icons.Smartphone size={13} />
-                ) : (
-                  <Icons.Monitor size={13} />
-                )}
-              </span>
-              <span className="iframe-dock-title">{s.title || s.url}</span>
-            </button>
-            <button
-              type="button"
-              className="iframe-dock-close"
-              onClick={() => onClose?.(s.key)}
-              title="关闭"
-            >
-              <Icons.X size={12} />
-            </button>
+            <QuickTooltip content={`恢复：${s.title || s.url}`} side="right">
+              <button
+                type="button"
+                className="iframe-dock-main"
+                onClick={() => onRestore?.(s.key)}
+                aria-label={`恢复：${s.title || s.url}`}
+              >
+                <span className="iframe-dock-icon" aria-hidden>
+                  {s.device === 'mobile' ? (
+                    <Icons.Smartphone size={13} />
+                  ) : (
+                    <Icons.Monitor size={13} />
+                  )}
+                </span>
+                <span className="iframe-dock-title">{s.title || s.url}</span>
+              </button>
+            </QuickTooltip>
+            <QuickTooltip content="关闭预览" side="right">
+              <button
+                type="button"
+                className="iframe-dock-close"
+                onClick={() => onClose?.(s.key)}
+                aria-label="关闭预览"
+              >
+                <Icons.X size={12} />
+              </button>
+            </QuickTooltip>
           </div>
         ))}
       </div>
