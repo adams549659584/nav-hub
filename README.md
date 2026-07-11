@@ -101,7 +101,7 @@ docker compose up -d
 
 ### Vercel 一键部署
 
-> ⭐ **仅适合演示 / 试用**。容器无持久磁盘，SQLite 落在 `/tmp`，**冷启动、新实例或重新部署后数据会丢失**。长期自托管请用 Docker 或本地二进制。
+> ⭐ **仅适合演示 / 试用**。容器无持久磁盘，SQLite 落在 `/tmp`；平台还可能起多个实例，**各实例本地库互不同步**，所以偶尔刷新会看到不一样的数据；冷启动、新实例或重新部署后数据也可能丢失。长期自托管请用 Docker 或本地二进制。
 
 一键部署，点这里 => [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/adams549659584/nav-hub&project-name=nav-hub&repository-name=nav-hub&env=PORT,SESSION_SECRET,ADMIN_USER,ADMIN_PASSWORD&envDefaults=%7B%22PORT%22%3A%228080%22%7D&envDescription=PORT%20%E5%BF%85%E9%A1%BB%E4%B8%BA%208080%EF%BC%88%E4%B8%8E%E9%95%9C%E5%83%8F%E4%B8%80%E8%87%B4%EF%BC%89%EF%BC%9B%E7%94%9F%E4%BA%A7%E5%8A%A1%E5%BF%85%E4%BF%AE%20SESSION_SECRET%20%E4%B8%8E%E7%AE%A1%E7%90%86%E5%91%98%E5%AF%86%E7%A0%81&envLink=https://github.com/adams549659584/nav-hub#%E7%8E%AF%E5%A2%83%E5%8F%98%E9%87%8F)
 
@@ -123,7 +123,7 @@ docker compose up -d
 
 说明与限制：
 
-- 默认 `DATABASE_DSN=file:/tmp/nav-hub.db?...`（**不持久**）  
+- 默认 `DATABASE_DSN=file:/tmp/nav-hub.db?...`（**不持久、不跨实例**）  
 - **改 `web/` 后只需推送源码**，镜像内会重新构建前端；不必提交 dist  
 - 设置页改密时新密码至少 6 位  
 - 生产勿依赖 Vercel 存配置；长期使用请 Docker / 自托管
