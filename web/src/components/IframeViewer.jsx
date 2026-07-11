@@ -8,39 +8,49 @@ const DEVICES = [
 ];
 
 /**
- * 站内 iframe 悬浮窗；控制条贴在窗口右侧，不占预览高度。
+ * 站内 iframe 悬浮窗；控制条在右侧。
+ * 最小化后不卸载 iframe，由父级继续挂载以复用页面状态。
  */
 export default function IframeViewer({
   open,
   url,
   title,
+  sessionKey,
   initialDevice = 'desktop',
   onClose,
+  onMinimize,
   onDeviceChange,
+  /** 是否在 DOM 中保留（最小化时 open=false 仍 keepAlive） */
+  keepAlive = false,
 }) {
-  const [device, setDevice] = useState(initialDevice || 'desktop');
+  const [device, setDevice] = useState(
+    initialDevice === 'mobile' ? 'mobile' : 'desktop'
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!open) return;
-    // 兼容旧数据 tablet → desktop
+    if (!open && !keepAlive) return;
     setDevice(initialDevice === 'mobile' ? 'mobile' : 'desktop');
-    setLoading(true);
-  }, [open, url, initialDevice]);
+    // 仅会话切换时同步设备，避免最小化/恢复时重置
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionKey]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        onClose?.();
+        // Esc 优先最小化（可复用），无最小化回调则关闭
+        if (onMinimize) onMinimize();
+        else onClose?.();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+  }, [open, onClose, onMinimize]);
 
-  if (!open || !url) return null;
+  if (!url) return null;
+  if (!open && !keepAlive) return null;
 
   const conf = DEVICES.find((d) => d.id === device) || DEVICES[1];
 
@@ -51,12 +61,17 @@ export default function IframeViewer({
 
   return (
     <div
-      className="iframe-viewer-overlay"
-      role="dialog"
-      aria-modal="true"
+      className={`iframe-viewer-overlay${open ? '' : ' is-hidden'}`}
+      role={open ? 'dialog' : undefined}
+      aria-modal={open ? true : undefined}
       aria-label={title || '预览'}
+      aria-hidden={!open}
       onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose?.();
+        if (open && e.target === e.currentTarget) {
+          // 点遮罩 = 最小化（可从托盘恢复）
+          if (onMinimize) onMinimize();
+          else onClose?.();
+        }
       }}
     >
       <div className="iframe-viewer-stack">
@@ -69,9 +84,10 @@ export default function IframeViewer({
           title={title || url}
         >
           <div className="iframe-viewer-body">
-            {loading && <div className="iframe-loading">加载中…</div>}
+            {open && loading && <div className="iframe-loading">加载中…</div>}
             <iframe
-              key={url}
+              // 稳定 key：同 session 不重建，最小化恢复不刷新
+              key={sessionKey || url}
               className="iframe-viewer-frame"
               src={url}
               title={title || url}
@@ -82,40 +98,59 @@ export default function IframeViewer({
           </div>
         </div>
 
-        {/* 控制条贴窗口右侧，纵向排列，不占高度 */}
-        <div className="iframe-viewer-rail glass-card" onMouseDown={(e) => e.stopPropagation()}>
-          <div className="iframe-viewer-devices" role="group" aria-label="视口模式">
-            {DEVICES.map((d) => {
-              const Icon = Icons[d.icon] || Icons.Monitor;
-              return (
-                <button
-                  key={d.id}
-                  type="button"
-                  className={`iframe-device-btn${device === d.id ? ' is-active' : ''}`}
-                  onClick={() => switchDevice(d.id)}
-                  title={d.label}
-                >
-                  <Icon size={15} />
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="iframe-rail-sep" />
-
-          <a
-            className="iframe-tool-btn"
-            href={url}
-            target="_blank"
-            rel="noopener noreferrer"
-            title="新标签打开"
+        {open && (
+          <div
+            className="iframe-viewer-rail glass-card"
+            onMouseDown={(e) => e.stopPropagation()}
           >
-            <Icons.ExternalLink size={15} />
-          </a>
-          <button type="button" className="iframe-tool-btn" onClick={onClose} title="关闭 (Esc)">
-            <Icons.X size={16} />
-          </button>
-        </div>
+            <div className="iframe-viewer-devices" role="group" aria-label="视口模式">
+              {DEVICES.map((d) => {
+                const Icon = Icons[d.icon] || Icons.Monitor;
+                return (
+                  <button
+                    key={d.id}
+                    type="button"
+                    className={`iframe-device-btn${device === d.id ? ' is-active' : ''}`}
+                    onClick={() => switchDevice(d.id)}
+                    title={d.label}
+                  >
+                    <Icon size={15} />
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="iframe-rail-sep" />
+
+            <a
+              className="iframe-tool-btn"
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              title="新标签打开"
+            >
+              <Icons.ExternalLink size={15} />
+            </a>
+            {onMinimize && (
+              <button
+                type="button"
+                className="iframe-tool-btn"
+                onClick={onMinimize}
+                title="最小化"
+              >
+                <Icons.Minus size={16} />
+              </button>
+            )}
+            <button
+              type="button"
+              className="iframe-tool-btn"
+              onClick={onClose}
+              title="关闭"
+            >
+              <Icons.X size={16} />
+            </button>
+          </div>
+        )}
       </div>
 
       <style>{`
@@ -133,6 +168,23 @@ export default function IframeViewer({
           animation: iframeFade 0.15s ease;
         }
 
+        .iframe-viewer-overlay.is-hidden {
+          /* 保留 iframe 挂载，移出视口且不可点 */
+          position: fixed;
+          width: 0;
+          height: 0;
+          padding: 0;
+          margin: 0;
+          overflow: hidden;
+          opacity: 0;
+          pointer-events: none;
+          z-index: -1;
+          animation: none;
+          -webkit-backdrop-filter: none;
+          backdrop-filter: none;
+          background: transparent;
+        }
+
         @keyframes iframeFade {
           from { opacity: 0; }
           to { opacity: 1; }
@@ -145,6 +197,9 @@ export default function IframeViewer({
           gap: 10px;
           max-width: 100%;
           max-height: 100%;
+        }
+
+        .iframe-viewer-overlay:not(.is-hidden) .iframe-viewer-stack {
           animation: iframePop 0.22s cubic-bezier(0.22, 1, 0.36, 1);
         }
 
@@ -200,7 +255,6 @@ export default function IframeViewer({
           pointer-events: none;
         }
 
-        /* 右侧竖条：仅占宽度，不占预览高度 */
         .iframe-viewer-rail {
           display: flex;
           flex-direction: column;

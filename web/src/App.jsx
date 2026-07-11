@@ -11,6 +11,7 @@ import LoginModal from './components/LoginModal';
 import ConfirmModal from './components/ConfirmModal';
 import CommandPalette from './components/CommandPalette';
 import IframeViewer from './components/IframeViewer';
+import IframeSessionDock from './components/IframeSessionDock';
 import * as Icons from 'lucide-react';
 
 import {
@@ -66,8 +67,12 @@ export default function App() {
   const [confirmDialog, setConfirmDialog] = useState(null);
   /** 命令面板 Cmd/Ctrl+K */
   const [isCommandOpen, setIsCommandOpen] = useState(false);
-  /** 站内 iframe 打开的导航 */
-  const [iframeView, setIframeView] = useState(null);
+  /**
+   * 站内 iframe 会话：{ key, id, url, title, device }
+   * activeIframeKey 为当前展开的；其余在右下角托盘可恢复（iframe 不卸载）
+   */
+  const [iframeSessions, setIframeSessions] = useState([]);
+  const [activeIframeKey, setActiveIframeKey] = useState(null);
   /** 已完成加载的壁纸 key；与当前 key 不同则显示 loading */
   const [wallpaperLoadedKey, setWallpaperLoadedKey] = useState('');
 
@@ -400,15 +405,51 @@ export default function App() {
   const handleOpenShortcut = useCallback((shortcut) => {
     if (!shortcut?.url) return;
     if (shortcut.openMode === 'iframe') {
-      setIframeView({
-        id: shortcut.id,
-        url: shortcut.url,
-        title: shortcut.name || shortcut.url,
-        device: shortcut.iframeDevice === 'mobile' ? 'mobile' : 'desktop',
+      const key = `sc-${shortcut.id ?? shortcut.url}`;
+      const device = shortcut.iframeDevice === 'mobile' ? 'mobile' : 'desktop';
+      setIframeSessions((prev) => {
+        const exists = prev.find((s) => s.key === key);
+        if (exists) {
+          // 已有会话：更新标题/设备偏好并复用
+          return prev.map((s) =>
+            s.key === key
+              ? {
+                  ...s,
+                  title: shortcut.name || shortcut.url,
+                  url: shortcut.url,
+                  device: s.device || device,
+                }
+              : s
+          );
+        }
+        return [
+          ...prev,
+          {
+            key,
+            id: shortcut.id,
+            url: shortcut.url,
+            title: shortcut.name || shortcut.url,
+            device,
+          },
+        ];
       });
+      setActiveIframeKey(key);
       return;
     }
     window.open(shortcut.url, '_blank', 'noopener,noreferrer');
+  }, []);
+
+  const minimizeIframe = useCallback(() => {
+    setActiveIframeKey(null);
+  }, []);
+
+  const closeIframeSession = useCallback((key) => {
+    setIframeSessions((prev) => prev.filter((s) => s.key !== key));
+    setActiveIframeKey((cur) => (cur === key ? null : cur));
+  }, []);
+
+  const restoreIframeSession = useCallback((key) => {
+    setActiveIframeKey(key);
   }, []);
 
   const handleDeleteShortcut = (id) => {
@@ -737,16 +778,29 @@ export default function App() {
         onClose={() => setConfirmDialog(null)}
       />
 
-      <IframeViewer
-        open={!!iframeView}
-        url={iframeView?.url}
-        title={iframeView?.title}
-        initialDevice={iframeView?.device || 'desktop'}
-        onClose={() => setIframeView(null)}
-        onDeviceChange={(device) => {
-          setIframeView((prev) => (prev ? { ...prev, device } : prev));
-          // 仅本次会话切换视口；持久默认值在编辑链接里改
-        }}
+      {iframeSessions.map((session) => (
+        <IframeViewer
+          key={session.key}
+          sessionKey={session.key}
+          open={activeIframeKey === session.key}
+          keepAlive
+          url={session.url}
+          title={session.title}
+          initialDevice={session.device || 'desktop'}
+          onMinimize={minimizeIframe}
+          onClose={() => closeIframeSession(session.key)}
+          onDeviceChange={(device) => {
+            setIframeSessions((prev) =>
+              prev.map((s) => (s.key === session.key ? { ...s, device } : s))
+            );
+          }}
+        />
+      ))}
+
+      <IframeSessionDock
+        sessions={iframeSessions.filter((s) => s.key !== activeIframeKey)}
+        onRestore={restoreIframeSession}
+        onClose={closeIframeSession}
       />
 
       <CommandPalette
