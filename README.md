@@ -61,6 +61,7 @@
 
 - 访客只读；管理员 Session 鉴权  
 - **设置中修改密码**（环境变量仅首次初始化账号）  
+- **新密码至少 6 位**（设置页与 `POST /api/admin/password` 均校验；过短会拒绝）  
 - 密码框即时显示 / 隐藏切换  
 - 配置整体 `PUT` 持久化，改完自动写回  
 
@@ -102,13 +103,15 @@ docker compose up -d
 |------|------|
 | `SESSION_SECRET` | 随机长字符串（**必改**） |
 | `ADMIN_USER` | 首次初始化管理员用户名 |
-| `ADMIN_PASSWORD` | 首次初始化管理员密码 |
+| `ADMIN_PASSWORD` | 首次初始化管理员密码（仅灌库一次） |
 
-说明：
+说明与限制：
 
 - 仓库内已含 [`vercel.json`](./vercel.json) 与 [`api/index.go`](./api/index.go)（Go Serverless 入口）
-- 未设置 `DATABASE_DSN` 时，在 Vercel 上自动使用 `file:/tmp/nav-hub.db?...`
+- 未设置 `DATABASE_DSN` 时，在 Vercel 上自动使用 `file:/tmp/nav-hub.db?...`（**不持久**）
 - 前端构建产物需已嵌入 `internal/static/dist/`（本仓库提交与 Docker 构建均会保证）
+- 部署后在设置页改密时，**新密码至少 6 位**（与本地相同；API `POST /api/admin/password` 亦校验）
+- 生产勿依赖 Vercel 存配置；演示后若需长期使用请改 Docker / 自托管
 
 ### 本地二进制
 
@@ -149,10 +152,11 @@ make dev-web        # Vite → http://localhost:5173（/api 代理到 8080）
 | `ADDR` | `:8080` | 监听地址 |
 | `DATABASE_DSN` | `file:./data/app.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)` | SQLite DSN；Docker 内为 `file:/data/app.db?...`；Vercel 未设置时为 `/tmp/nav-hub.db`（不持久） |
 | `ADMIN_USER` | `admin` | 首次初始化管理员用户名 |
-| `ADMIN_PASSWORD` | `admin` | 首次初始化管理员密码 |
+| `ADMIN_PASSWORD` | `admin` | 首次初始化管理员密码（仅灌库一次；之后改密见下） |
 | `SESSION_SECRET` | `dev-secret-change-me` | Session 签名密钥，**生产务必修改** |
 
 - `ADMIN_*` **仅在库中尚无管理员时**写入；之后请用设置页改密。  
+- **修改密码**时，新密码 **至少 6 个字符**（前后端均校验）。  
 - 生产请使用强随机 `SESSION_SECRET` 与独立密码。
 
 ---
@@ -168,7 +172,7 @@ make dev-web        # Vite → http://localhost:5173（/api 代理到 8080）
 | `GET` | `/api/auth/me` | `{ admin: boolean }` |
 | `POST` | `/api/auth/login` | `{ username, password }` → Set-Cookie |
 | `POST` | `/api/auth/logout` | 清除 Session |
-| `POST` | `/api/admin/password` | 需登录；修改管理员密码 |
+| `POST` | `/api/admin/password` | 需登录；改密。Body：`{ currentPassword, newPassword }`；**`newPassword` 至少 6 位** |
 | `PUT` | `/api/admin/config` | 需登录；整包 JSON 写回 |
 
 ---
@@ -179,11 +183,11 @@ make dev-web        # Vite → http://localhost:5173（/api 代理到 8080）
 nav-hub/
 ├── api/                  # Vercel Serverless 入口（api/index.go）
 ├── cmd/nav-hub/          # 本地 / Docker Go 入口
+├── server/               # HTTP 路由与启动（本地与 Vercel 共用；不可放 internal，供 Vercel 引用）
 ├── internal/
 │   ├── auth/             # Cookie Session
 │   ├── favicon/          # 站点图标抓取
 │   ├── seed/             # 首次灌库 seed.json
-│   ├── server/           # HTTP 路由与启动（本地与 Vercel 共用）
 │   ├── static/dist/      # 嵌入的前端构建产物（勿手改）
 │   ├── store/            # SQLite 读写
 │   └── wallpaper/        # 壁纸代理
@@ -231,7 +235,7 @@ nav-hub/
 - 自定义图标建议 ≤ **200KB**；支持粘贴 SVG 与自动抓取。  
 - **站内预览**依赖目标站是否允许被 iframe 嵌入；多数大站会拒绝，请改用新标签页。  
 - 管理员改数据后前端会 debounce 写回；已有库启动会自动迁移 schema。  
-- 生产务必改 `SESSION_SECRET` 与管理员密码。  
+- 生产务必改 `SESSION_SECRET` 与管理员密码；**在设置中改密时新密码至少 6 位**。  
 - Vercel 部署仅适合演示：数据在 `/tmp`，不保证持久化。
 
 ---

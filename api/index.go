@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/adams549659584/nav-hub/internal/server"
+	"github.com/adams549659584/nav-hub/server"
 )
 
 var (
