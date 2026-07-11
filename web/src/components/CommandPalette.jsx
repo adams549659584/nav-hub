@@ -3,6 +3,7 @@ import * as Icons from 'lucide-react';
 import { SEARCH_ENGINES } from '../utils/defaultData';
 import { buildCommandSections, looksLikeUrl, normalizeOpenUrl } from '../utils/commandItems';
 import ShortcutListIcon, { NAV_LIST_ITEM_STYLES } from './ShortcutListIcon';
+import SearchEngineIcon from './SearchEngineIcon';
 
 export default function CommandPalette({
   open,
@@ -198,21 +199,29 @@ export default function CommandPalette({
                       key={item.id}
                       type="button"
                       data-cmd-index={idx}
-                      className={`nav-list-item${active ? ' is-active' : ''}`}
+                      className={`nav-list-item${active ? ' is-active' : ''}${
+                        item.type === 'search' ? ' is-search-row' : ''
+                      }`}
                       onMouseEnter={() => setActiveIndex(idx)}
                       onClick={() => runItem(item)}
                     >
-                      {renderIcon(item)}
+                      {item.type === 'search' ? (
+                        <span className="cmd-search-engine-icon" aria-hidden>
+                          <SearchEngineIcon
+                            id={item.engineId || item.engine?.id}
+                            size={18}
+                          />
+                        </span>
+                      ) : (
+                        renderIcon(item)
+                      )}
                       <span className="nav-list-item-text">
                         <span className="nav-list-item-title">{item.title}</span>
                         {item.subtitle && (
                           <span className="nav-list-item-sub">{item.subtitle}</span>
                         )}
                       </span>
-                      {item.primary && <span className="cmd-palette-badge">默认</span>}
-                      {item.type === 'shortcut' && (
-                        <Icons.CornerDownLeft size={14} className="cmd-palette-enter-hint" />
-                      )}
+                      <Icons.CornerDownLeft size={14} className="cmd-palette-enter-hint" />
                     </button>
                   );
                 })}
@@ -330,13 +339,18 @@ export default function CommandPalette({
           margin-bottom: 6px;
         }
 
-        .cmd-palette-badge {
-          font-size: 10px;
-          padding: 2px 6px;
-          border-radius: 999px;
-          background: rgba(59, 130, 246, 0.35);
-          color: rgba(255, 255, 255, 0.85);
+        .cmd-search-engine-icon {
+          width: 28px;
+          height: 28px;
           flex-shrink: 0;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 0;
+        }
+
+        .cmd-search-engine-icon svg {
+          display: block;
         }
 
         .cmd-palette-enter-hint {

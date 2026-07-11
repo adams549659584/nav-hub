@@ -83,7 +83,7 @@ export function buildCommandSections({
     });
   }
 
-  // —— 搜索引擎 ——
+  // —— 搜索引擎：图标 + 搜索词 + 灰色引擎名 ——
   if (q && !looksLikeUrl(q)) {
     sections.push({
       id: 'search',
@@ -91,11 +91,11 @@ export function buildCommandSections({
       items: engines.map((engine) => ({
         id: `search-${engine.id}`,
         type: 'search',
-        title: `用 ${engine.name} 搜索「${q}」`,
+        title: q,
         subtitle: engine.name,
         engine,
         searchQuery: q,
-        primary: engine.id === defaultEngineId,
+        engineId: engine.id,
       })),
     });
   }

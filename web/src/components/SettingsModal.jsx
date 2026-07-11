@@ -9,6 +9,7 @@ import {
   updateWallpaperField,
 } from '../utils/wallpaper';
 import PasswordInput from './PasswordInput';
+import SearchEngineIcon from './SearchEngineIcon';
 
 export default function SettingsModal({
   isOpen,
@@ -436,10 +437,11 @@ export default function SettingsModal({
                   {SEARCH_ENGINES.map((engine) => (
                     <button
                       key={engine.id}
-                      className={`select-option-btn ${settings.searchEngine === engine.id ? 'active' : ''}`}
+                      className={`select-option-btn engine-option-btn ${settings.searchEngine === engine.id ? 'active' : ''}`}
                       onClick={() => updateSetting('searchEngine', engine.id)}
                     >
-                      {engine.name}
+                      <SearchEngineIcon id={engine.id} size={16} />
+                      <span>{engine.name}</span>
                     </button>
                   ))}
                 </div>
@@ -954,6 +956,18 @@ export default function SettingsModal({
           color: white;
           font-weight: 500;
           box-shadow: 0 4px 10px rgba(59, 130, 246, 0.3);
+        }
+
+        .engine-option-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+        }
+
+        .engine-option-btn svg {
+          flex-shrink: 0;
+          display: block;
         }
 
         /* Switch toggles */

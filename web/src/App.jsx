@@ -623,8 +623,8 @@ export default function App() {
         <SearchBar
           currentEngineId={settings.searchEngine}
           onChangeEngine={(engineId) => {
-            if (!isAdmin) return;
-            setSettings({ ...settings, searchEngine: engineId });
+            // 任何人可切换当前搜索引擎；仅管理员会经 persist 写回服务端
+            setSettings((prev) => ({ ...prev, searchEngine: engineId }));
           }}
           showSuggestionsSetting={settings.showSuggestions !== false}
           query={searchQuery}
