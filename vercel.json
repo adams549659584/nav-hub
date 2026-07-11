@@ -1,16 +1,6 @@
 {
-  "version": 2,
-  "installCommand": "bash scripts/vercel-prepare.sh",
-  "builds": [
-    {
-      "src": "/api/index.go",
-      "use": "@vercel/go"
-    }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/api/index.go"
-    }
-  ]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "go",
+  "installCommand": "echo 'deps: go modules + pnpm (in buildCommand)'",
+  "buildCommand": "bash scripts/vercel-build.sh"
 }

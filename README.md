@@ -117,7 +117,7 @@ docker compose up -d
 
 - 仓库内已含 [`vercel.json`](./vercel.json) 与 [`api/index.go`](./api/index.go)（Go Serverless 入口）
 - 未设置 `DATABASE_DSN` 时，在 Vercel 上自动使用 `file:/tmp/nav-hub.db?...`（**不持久**）
-- **前端构建**：Vercel 会跑 `scripts/vercel-prepare.sh` 自动构建并写入 `internal/static/dist` 再编译 Go；Docker 同理。**改 `web/` 后只需推送源码**。本地纯 `go build` / `go run` 前请先 `make build-web`（仓库里只留占位页，不含完整 SPA）。
+- **前端构建**：Vercel 使用 **Go Framework Preset**（**不要**在 `vercel.json` 里写 legacy `builds`，否则会忽略 `buildCommand`，见 [Unused build settings](https://vercel.com/docs/errors/error-list#unused-build-and-development-settings)）。`buildCommand` 跑 `scripts/vercel-build.sh`：先 `pnpm build` 写入 `internal/static/dist`，再 `go build`。Docker 在镜像内构建。**改 `web/` 后只需推送源码**。本地纯 `go build` 前请先 `make build-web`。
 - 部署后在设置页改密时，**新密码至少 6 位**（与本地相同；API `POST /api/admin/password` 亦校验）
 - 生产勿依赖 Vercel 存配置；演示后若需长期使用请改 Docker / 自托管
 
@@ -189,9 +189,10 @@ make dev-web        # Vite → http://localhost:5173（/api 代理到 8080）
 
 ```
 nav-hub/
-├── api/                  # Vercel Serverless 入口（api/index.go）
-├── cmd/nav-hub/          # 本地 / Docker Go 入口
-├── server/               # HTTP 路由与启动（本地与 Vercel 共用；不可放 internal，供 Vercel 引用）
+├── api/                  # 可选：旧式 Serverless Handler（现 Vercel 走 framework=go + cmd/nav-hub）
+├── cmd/nav-hub/          # 本地 / Docker / Vercel Go 入口（监听 PORT/ADDR）
+├── server/               # HTTP 路由与启动（不可放 internal）
+├── scripts/vercel-build.sh # Vercel：前端 + go build
 ├── internal/
 │   ├── auth/             # Cookie Session
 │   ├── favicon/          # 站点图标抓取
