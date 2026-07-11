@@ -189,8 +189,9 @@ make dev-web        # Vite → http://localhost:5173（/api 代理到 8080）
 
 ```
 nav-hub/
-├── api/                  # 可选：旧式 Serverless Handler（现 Vercel 走 framework=go + cmd/nav-hub）
-├── cmd/nav-hub/          # 本地 / Docker / Vercel Go 入口（监听 PORT/ADDR）
+├── api/                  # 可选：旧式 Serverless Handler
+├── cmd/nav-hub/          # 本地 / Docker 入口
+├── cmd/server/           # Vercel Go 预设入口（要求此路径；逻辑与 nav-hub 相同）
 ├── server/               # HTTP 路由与启动（不可放 internal）
 ├── scripts/vercel-build.sh # Vercel：前端 + go build
 ├── internal/

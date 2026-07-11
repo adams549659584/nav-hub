@@ -22,7 +22,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 目录结构
 
 - `web/` — React + Vite 前端（原根目录前端已迁入）
-- `cmd/nav-hub/` — Go 入口
+- `cmd/nav-hub/` — 本地 / Docker Go 入口
+- `cmd/server/` — Vercel Go Framework Preset 入口（平台固定探测该路径）
 - `internal/store` — SQLite 与配置读写
 - `internal/auth` — Cookie Session
 - `internal/seed` — `seed.json` 首次灌库

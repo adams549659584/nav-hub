@@ -37,5 +37,6 @@ OUT="bin/nav-hub"
 if [ -n "${VERCEL_OUTPUT_FILE:-}" ]; then
   OUT="$VERCEL_OUTPUT_FILE"
 fi
-go build -trimpath -ldflags="-s -w" -o "$OUT" ./cmd/nav-hub
+# 入口必须是 cmd/server（Vercel 预设探测路径）；与本地 ./cmd/nav-hub 共用 server.ListenAndServe
+go build -trimpath -ldflags="-s -w" -o "$OUT" ./cmd/server
 echo "    binary: $OUT"

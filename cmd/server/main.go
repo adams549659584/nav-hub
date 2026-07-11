@@ -1,3 +1,4 @@
+// Vercel Go Framework Preset 要求入口为 main.go / cmd/api/main.go / cmd/server/main.go。
 package main
 
 import (
