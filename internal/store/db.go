@@ -14,7 +14,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-const schemaVersion = 3
+const schemaVersion = 4
 
 type DB struct {
 	sql *sql.DB
@@ -122,11 +122,35 @@ func (d *DB) migrate() error {
 		}
 		ver = 3
 	}
+	if ver == 3 {
+		if err := d.migrateV3ToV4(); err != nil {
+			return fmt.Errorf("migrate v3→v4: %w", err)
+		}
+		ver = 4
+	}
 
-	if err := d.createV3Schema(); err != nil {
+	if err := d.createV4Schema(); err != nil {
 		return err
 	}
 	return d.setSchemaVersion(schemaVersion)
+}
+
+func (d *DB) migrateV3ToV4() error {
+	cols, err := d.tableColumns("shortcuts")
+	if err != nil {
+		return err
+	}
+	if !contains(cols, "open_mode") {
+		if _, err := d.sql.Exec(`ALTER TABLE shortcuts ADD COLUMN open_mode TEXT NOT NULL DEFAULT 'tab'`); err != nil {
+			return err
+		}
+	}
+	if !contains(cols, "iframe_device") {
+		if _, err := d.sql.Exec(`ALTER TABLE shortcuts ADD COLUMN iframe_device TEXT NOT NULL DEFAULT 'desktop'`); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (d *DB) getSchemaVersion() (int, error) {
@@ -155,6 +179,10 @@ func (d *DB) setSchemaVersion(v int) error {
 }
 
 func (d *DB) createV3Schema() error {
+	return d.createV4Schema()
+}
+
+func (d *DB) createV4Schema() error {
 	stmts := []string{
 		`CREATE TABLE IF NOT EXISTS categories (
 			id INTEGER PRIMARY KEY,
@@ -170,6 +198,8 @@ func (d *DB) createV3Schema() error {
 			letter TEXT NOT NULL DEFAULT '',
 			bg_color TEXT NOT NULL DEFAULT '',
 			favicon TEXT NOT NULL DEFAULT '',
+			open_mode TEXT NOT NULL DEFAULT 'tab',
+			iframe_device TEXT NOT NULL DEFAULT 'desktop',
 			sort_order INTEGER NOT NULL DEFAULT 0
 		)`,
 		`CREATE TABLE IF NOT EXISTS shortcut_categories (
@@ -549,7 +579,9 @@ func (d *DB) loadCategories(ctx context.Context) ([]Category, error) {
 
 func (d *DB) loadShortcuts(ctx context.Context) ([]Shortcut, error) {
 	rows, err := d.sql.QueryContext(ctx,
-		`SELECT id, name, url, letter, bg_color, favicon FROM shortcuts ORDER BY sort_order, id`)
+		`SELECT id, name, url, letter, bg_color, favicon,
+			COALESCE(open_mode, 'tab'), COALESCE(iframe_device, 'desktop')
+		 FROM shortcuts ORDER BY sort_order, id`)
 	if err != nil {
 		return nil, err
 	}
@@ -558,8 +590,17 @@ func (d *DB) loadShortcuts(ctx context.Context) ([]Shortcut, error) {
 	var out []Shortcut
 	for rows.Next() {
 		var s Shortcut
-		if err := rows.Scan(&s.ID, &s.Name, &s.URL, &s.Letter, &s.BgColor, &s.Favicon); err != nil {
+		if err := rows.Scan(
+			&s.ID, &s.Name, &s.URL, &s.Letter, &s.BgColor, &s.Favicon,
+			&s.OpenMode, &s.IframeDevice,
+		); err != nil {
 			return nil, err
+		}
+		if s.OpenMode == "" {
+			s.OpenMode = "tab"
+		}
+		if s.IframeDevice == "" {
+			s.IframeDevice = "desktop"
 		}
 		s.CategoryIDs = []int64{}
 		out = append(out, s)
@@ -649,10 +690,18 @@ func (d *DB) SaveConfig(ctx context.Context, cfg *SiteConfig) error {
 	// track per-category sort for memberships
 	catOrd := map[int64]int{}
 	for i, s := range cfg.Shortcuts {
+		openMode := s.OpenMode
+		if openMode != "iframe" {
+			openMode = "tab"
+		}
+		device := s.IframeDevice
+		if device != "mobile" {
+			device = "desktop"
+		}
 		if _, err := tx.ExecContext(ctx,
-			`INSERT INTO shortcuts (id, name, url, letter, bg_color, favicon, sort_order)
-			 VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			s.ID, s.Name, s.URL, s.Letter, s.BgColor, s.Favicon, i); err != nil {
+			`INSERT INTO shortcuts (id, name, url, letter, bg_color, favicon, open_mode, iframe_device, sort_order)
+			 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+			s.ID, s.Name, s.URL, s.Letter, s.BgColor, s.Favicon, openMode, device, i); err != nil {
 			return err
 		}
 		for _, cid := range s.CategoryIDs {

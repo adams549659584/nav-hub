@@ -18,12 +18,16 @@ type Category struct {
 
 // Shortcut is a grid tile linking to a URL.
 // CategoryIDs: many-to-many membership (a shortcut can appear in multiple categories).
+// OpenMode: "tab" (default) | "iframe"
+// IframeDevice: "desktop" | "mobile" (only for iframe)
 type Shortcut struct {
-	ID          int64   `json:"id"`
-	CategoryIDs []int64 `json:"categoryIds"`
-	Name        string  `json:"name"`
-	URL         string  `json:"url"`
-	Letter      string  `json:"letter,omitempty"`
-	BgColor     string  `json:"bgColor,omitempty"`
-	Favicon     string  `json:"favicon,omitempty"`
+	ID           int64   `json:"id"`
+	CategoryIDs  []int64 `json:"categoryIds"`
+	Name         string  `json:"name"`
+	URL          string  `json:"url"`
+	Letter       string  `json:"letter,omitempty"`
+	BgColor      string  `json:"bgColor,omitempty"`
+	Favicon      string  `json:"favicon,omitempty"`
+	OpenMode     string  `json:"openMode,omitempty"`
+	IframeDevice string  `json:"iframeDevice,omitempty"`
 }

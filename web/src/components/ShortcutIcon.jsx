@@ -21,6 +21,7 @@ export default function ShortcutIcon({
   isAdmin = false,
   onDelete,
   onEditClick,
+  onOpen,
   settings,
   onDragOverShortcut,
   onDropOnShortcut,
@@ -62,6 +63,8 @@ export default function ShortcutIcon({
     if (isEditing) {
       e.preventDefault();
       onEditClick(shortcut);
+    } else if (onOpen) {
+      onOpen(shortcut);
     } else {
       window.open(shortcut.url, '_blank', 'noopener,noreferrer');
     }

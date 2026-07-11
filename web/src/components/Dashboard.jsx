@@ -9,6 +9,7 @@ export default function Dashboard({
   onDeleteShortcut,
   onEditShortcut,
   onUpdateShortcut,
+  onOpenShortcut,
   onAddShortcutClick,
   onReorderShortcuts,
   settings,
@@ -59,6 +60,7 @@ export default function Dashboard({
               isAdmin={isAdmin}
               onDelete={onDeleteShortcut}
               onEditClick={onEditShortcut}
+              onOpen={onOpenShortcut}
               onUpdate={onUpdateShortcut}
               settings={settings}
               isDropTarget={isEditing && dropTargetId === shortcut.id}

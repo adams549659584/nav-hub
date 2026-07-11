@@ -25,6 +25,7 @@ export default function SearchBar({
   shortcuts = [],
   activeCategoryId,
   onOpenCommand,
+  onOpenShortcut,
 }) {
   const [isOpenEngineMenu, setIsOpenEngineMenu] = useState(false);
   const [suggestions, setSuggestions] = useState([]);
@@ -130,7 +131,8 @@ export default function SearchBar({
   }, [activeIndex]);
 
   const openLocalShortcut = (s) => {
-    window.open(s.url, '_blank', 'noopener,noreferrer');
+    if (onOpenShortcut) onOpenShortcut(s);
+    else window.open(s.url, '_blank', 'noopener,noreferrer');
     onChangeQuery('');
     setShowSuggestions(false);
     setActiveIndex(-1);

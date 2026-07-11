@@ -10,6 +10,7 @@ import QuoteFooter from './components/QuoteFooter';
 import LoginModal from './components/LoginModal';
 import ConfirmModal from './components/ConfirmModal';
 import CommandPalette from './components/CommandPalette';
+import IframeViewer from './components/IframeViewer';
 import * as Icons from 'lucide-react';
 
 import {
@@ -65,6 +66,8 @@ export default function App() {
   const [confirmDialog, setConfirmDialog] = useState(null);
   /** 命令面板 Cmd/Ctrl+K */
   const [isCommandOpen, setIsCommandOpen] = useState(false);
+  /** 站内 iframe 打开的导航 */
+  const [iframeView, setIframeView] = useState(null);
   /** 已完成加载的壁纸 key；与当前 key 不同则显示 loading */
   const [wallpaperLoadedKey, setWallpaperLoadedKey] = useState('');
 
@@ -149,7 +152,7 @@ export default function App() {
 
     const hasBlockingOverlay = () =>
       !!document.querySelector(
-        '.modal-overlay, .drawer-overlay, .cmd-palette-overlay'
+        '.modal-overlay, .drawer-overlay, .cmd-palette-overlay, .iframe-viewer-overlay'
       );
 
     const onKeyDown = (e) => {
@@ -349,6 +352,9 @@ export default function App() {
       categoryIds = [Number(activeCategoryId)];
     }
 
+    const openMode = payload.openMode === 'iframe' ? 'iframe' : 'tab';
+    const iframeDevice = payload.iframeDevice === 'mobile' ? 'mobile' : 'desktop';
+
     const exists = shortcuts.some((s) => s.id === payload.id);
     if (exists) {
       setShortcuts(
@@ -362,6 +368,8 @@ export default function App() {
                   letter: payload.letter || '',
                   bgColor: payload.bgColor || '',
                   favicon: payload.favicon || '',
+                  openMode,
+                  iframeDevice,
                 },
                 categoryIds
               )
@@ -379,6 +387,8 @@ export default function App() {
             letter: payload.letter || '',
             bgColor: payload.bgColor || '',
             favicon: payload.favicon || '',
+            openMode,
+            iframeDevice,
           },
           categoryIds
         ),
@@ -386,6 +396,20 @@ export default function App() {
     }
     setShortcutToEdit(null);
   };
+
+  const handleOpenShortcut = useCallback((shortcut) => {
+    if (!shortcut?.url) return;
+    if (shortcut.openMode === 'iframe') {
+      setIframeView({
+        id: shortcut.id,
+        url: shortcut.url,
+        title: shortcut.name || shortcut.url,
+        device: shortcut.iframeDevice === 'mobile' ? 'mobile' : 'desktop',
+      });
+      return;
+    }
+    window.open(shortcut.url, '_blank', 'noopener,noreferrer');
+  }, []);
 
   const handleDeleteShortcut = (id) => {
     const target = shortcuts.find((s) => s.id === id);
@@ -632,6 +656,7 @@ export default function App() {
           shortcuts={shortcuts}
           activeCategoryId={activeCategoryId}
           onOpenCommand={() => setIsCommandOpen(true)}
+          onOpenShortcut={handleOpenShortcut}
         />
 
         <Dashboard
@@ -646,6 +671,7 @@ export default function App() {
           onDeleteShortcut={handleDeleteShortcut}
           onEditShortcut={handleEditShortcutClick}
           onUpdateShortcut={handleUpdateShortcut}
+          onOpenShortcut={handleOpenShortcut}
           onAddShortcutClick={handleAddShortcutClick}
           onReorderShortcuts={handleReorderShortcuts}
           settings={settings}
@@ -711,6 +737,18 @@ export default function App() {
         onClose={() => setConfirmDialog(null)}
       />
 
+      <IframeViewer
+        open={!!iframeView}
+        url={iframeView?.url}
+        title={iframeView?.title}
+        initialDevice={iframeView?.device || 'desktop'}
+        onClose={() => setIframeView(null)}
+        onDeviceChange={(device) => {
+          setIframeView((prev) => (prev ? { ...prev, device } : prev));
+          // 仅本次会话切换视口；持久默认值在编辑链接里改
+        }}
+      />
+
       <CommandPalette
         open={isCommandOpen}
         onClose={() => setIsCommandOpen(false)}
@@ -719,9 +757,7 @@ export default function App() {
         settings={settings}
         isAdmin={isAdmin}
         isEditing={isEditing}
-        onOpenShortcut={(s) => {
-          if (s?.url) window.open(s.url, '_blank', 'noopener,noreferrer');
-        }}
+        onOpenShortcut={handleOpenShortcut}
         onSearch={(engine, q) => {
           if (!engine?.url || !q) return;
           window.open(

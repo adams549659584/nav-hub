@@ -48,6 +48,8 @@ export default function EditShortcutModal({
   // 空字符串 = 透明背景
   const [bgColor, setBgColor] = useState('');
   const [favicon, setFavicon] = useState('');
+  const [openMode, setOpenMode] = useState('tab'); // tab | iframe
+  const [iframeDevice, setIframeDevice] = useState('desktop'); // desktop | mobile
   const [selectedCategoryIds, setSelectedCategoryIds] = useState([]);
   const [showSvgPaste, setShowSvgPaste] = useState(false);
   const [svgError, setSvgError] = useState('');
@@ -69,6 +71,10 @@ export default function EditShortcutModal({
       setLetter(shortcutToEdit.letter || '');
       setBgColor(shortcutToEdit.bgColor || '');
       setFavicon(shortcutToEdit.favicon || '');
+      setOpenMode(shortcutToEdit.openMode === 'iframe' ? 'iframe' : 'tab');
+      setIframeDevice(
+        shortcutToEdit.iframeDevice === 'mobile' ? 'mobile' : 'desktop'
+      );
       setSelectedCategoryIds(getCategoryIds(shortcutToEdit));
     } else {
       setUrl('');
@@ -76,6 +82,8 @@ export default function EditShortcutModal({
       setLetter('');
       setBgColor('');
       setFavicon('');
+      setOpenMode('tab');
+      setIframeDevice('desktop');
       setSelectedCategoryIds(
         (defaultCategoryIds || []).map(Number).filter((n) => n > 0)
       );
@@ -255,6 +263,9 @@ export default function EditShortcutModal({
         : (letter.trim() || name.trim().charAt(0)).toUpperCase(),
       bgColor: bgColor || '',
       favicon: favicon.trim(),
+      openMode: openMode === 'iframe' ? 'iframe' : 'tab',
+      iframeDevice:
+        openMode === 'iframe' && iframeDevice === 'mobile' ? 'mobile' : 'desktop',
       // 允许为空：无分类仅在「全部」中显示
       categoryIds: selectedCategoryIds.map(Number).filter((n) => n > 0),
     };
@@ -308,6 +319,7 @@ export default function EditShortcutModal({
         </div>
 
         <form onSubmit={handleSubmit} className="modal-form">
+          <div className="modal-form-body">
           <div className="form-group">
             <label>网站链接</label>
             <input
@@ -471,6 +483,50 @@ export default function EditShortcutModal({
 
           <div className="form-group">
             <label>
+              打开方式
+              <span className="label-hint">部分网站禁止嵌入，iframe 可能空白</span>
+            </label>
+            <div className="open-mode-row">
+              <button
+                type="button"
+                className={`open-mode-btn${openMode === 'tab' ? ' is-active' : ''}`}
+                onClick={() => setOpenMode('tab')}
+              >
+                <Icons.ExternalLink size={14} />
+                新标签页
+              </button>
+              <button
+                type="button"
+                className={`open-mode-btn${openMode === 'iframe' ? ' is-active' : ''}`}
+                onClick={() => setOpenMode('iframe')}
+              >
+                <Icons.AppWindow size={14} />
+                站内预览
+              </button>
+            </div>
+            {openMode === 'iframe' && (
+              <div className="iframe-device-row">
+                <span className="iframe-device-label">默认视口</span>
+                {[
+                  { id: 'mobile', label: '手机', icon: Icons.Smartphone },
+                  { id: 'desktop', label: '电脑', icon: Icons.Monitor },
+                ].map(({ id, label, icon: Icon }) => (
+                  <button
+                    key={id}
+                    type="button"
+                    className={`open-mode-btn compact${iframeDevice === id ? ' is-active' : ''}`}
+                    onClick={() => setIframeDevice(id)}
+                  >
+                    <Icon size={13} />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="form-group">
+            <label>
               背景颜色
               <span className="label-hint">可选，清除后为透明</span>
             </label>
@@ -518,6 +574,7 @@ export default function EditShortcutModal({
               )}
             </div>
           </div>
+          </div>
 
           <div className="modal-actions">
             <button type="button" className="glass-btn cancel-btn" onClick={onClose}>
@@ -533,6 +590,10 @@ export default function EditShortcutModal({
       <style>{`
         .edit-shortcut-modal.modal-content {
           width: 520px;
+          max-height: 85vh;
+          display: flex;
+          flex-direction: column;
+          overflow: hidden;
         }
 
         .modal-header {
@@ -541,6 +602,7 @@ export default function EditShortcutModal({
           align-items: center;
           padding: 18px 24px;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          flex-shrink: 0;
         }
 
         .modal-header h3 {
@@ -557,10 +619,24 @@ export default function EditShortcutModal({
         }
 
         .modal-form {
+          flex: 1;
+          min-height: 0;
+          display: flex;
+          flex-direction: column;
+          padding: 0;
+          gap: 0;
+        }
+
+        .modal-form-body {
+          flex: 1;
+          min-height: 0;
+          overflow-y: auto;
+          overflow-x: hidden;
           padding: 24px;
           display: flex;
           flex-direction: column;
           gap: 16px;
+          overscroll-behavior: contain;
         }
 
         .form-group {
@@ -612,6 +688,56 @@ export default function EditShortcutModal({
         .category-check-item input {
           accent-color: #3b82f6;
           margin: 0;
+        }
+
+        .open-mode-row,
+        .iframe-device-row {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+          align-items: center;
+        }
+
+        .iframe-device-row {
+          margin-top: 8px;
+        }
+
+        .iframe-device-label {
+          font-size: 11px;
+          color: rgba(255, 255, 255, 0.4);
+          margin-right: 2px;
+        }
+
+        .open-mode-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          height: 32px;
+          padding: 0 12px;
+          border-radius: 8px;
+          border: 1px solid rgba(255, 255, 255, 0.12);
+          background: rgba(255, 255, 255, 0.05);
+          color: rgba(255, 255, 255, 0.7);
+          font-size: 12px;
+          cursor: pointer;
+          transition: all 0.15s;
+        }
+
+        .open-mode-btn.compact {
+          height: 28px;
+          padding: 0 10px;
+          font-size: 11.5px;
+        }
+
+        .open-mode-btn:hover {
+          color: #fff;
+          background: rgba(255, 255, 255, 0.1);
+        }
+
+        .open-mode-btn.is-active {
+          color: #fff;
+          border-color: rgba(59, 130, 246, 0.55);
+          background: rgba(59, 130, 246, 0.25);
         }
 
         .form-group-row {
@@ -833,6 +959,10 @@ export default function EditShortcutModal({
           display: flex;
           justify-content: flex-end;
           gap: 10px;
+          flex-shrink: 0;
+          padding: 14px 24px 18px;
+          border-top: 1px solid rgba(255, 255, 255, 0.08);
+          background: rgba(0, 0, 0, 0.15);
         }
 
         .cancel-btn {
