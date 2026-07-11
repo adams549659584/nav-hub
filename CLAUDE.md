@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 |------|------|
 | `make dev-api` | 本地 Go API（`:8080`，需已 `go build` 或 `go run ./cmd/nav-hub`） |
 | `make dev-web` | `web/` 下 Vite 开发（代理 `/api` → 8080） |
-| `make build-web` | 构建前端并应复制到 `internal/static/dist/`（Docker 构建会自动做） |
+| `make build-web` | 构建前端并复制到 `internal/static/dist/`（Docker / Vercel 部署会自动做） |
 | `make build` | 构建 web + `bin/nav-hub` |
 | `make docker` | 本地 Docker 镜像 |
 | `cd web && pnpm lint` | Oxlint |
@@ -26,7 +26,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `internal/store` — SQLite 与配置读写
 - `internal/auth` — Cookie Session
 - `internal/seed` — `seed.json` 首次灌库
-- `internal/static/dist/` — 嵌入的前端构建产物（勿手改；由 `pnpm build` 或 Dockerfile 生成）
+- `internal/static/dist/` — 嵌入的前端构建产物（勿手改；`make build-web` / Docker / Vercel `scripts/vercel-prepare.sh` 生成）
 - `Dockerfile` / `docker-compose.yml` — 单镜像部署
 - `.github/workflows/docker-ghcr.yml` — 推送到 GHCR（BuildKit GHA cache）
 
