@@ -11,6 +11,9 @@ const DEVICES = [
 /**
  * 站内 iframe 悬浮窗；控制条在右侧。
  * 最小化后不卸载 iframe，由父级继续挂载以复用页面状态。
+ *
+ * 注意：跨域成功加载与被 X-Frame/CSP 拒绝时，浏览器侧都无法可靠区分，
+ * 因此「可能禁止嵌入」仅由用户手动打开，避免误挡正常页面。
  */
 export default function IframeViewer({
   open,
@@ -28,6 +31,7 @@ export default function IframeViewer({
     initialDevice === 'mobile' ? 'mobile' : 'desktop'
   );
   const [loading, setLoading] = useState(true);
+  const [showEmbedHint, setShowEmbedHint] = useState(false);
 
   useEffect(() => {
     if (!open && !keepAlive) return;
@@ -35,6 +39,13 @@ export default function IframeViewer({
     // 仅会话切换时同步设备，避免最小化/恢复时重置
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionKey]);
+
+  // 切换会话或 URL 时重置加载 / 提示（不自动弹出拦截遮罩）
+  useEffect(() => {
+    if (!url) return;
+    setLoading(true);
+    setShowEmbedHint(false);
+  }, [sessionKey, url]);
 
   useEffect(() => {
     if (!open) return;
@@ -84,7 +95,45 @@ export default function IframeViewer({
           }}
         >
           <div className="iframe-viewer-body">
-            {open && loading && <div className="iframe-loading">加载中…</div>}
+            {open && loading && !showEmbedHint && (
+              <div className="iframe-loading">加载中…</div>
+            )}
+            {open && showEmbedHint && (
+              <div className="iframe-embed-hint">
+                <Icons.ShieldOff size={22} strokeWidth={1.6} />
+                <p className="iframe-embed-hint-title">此站点可能禁止嵌入</p>
+                <p className="iframe-embed-hint-desc">
+                  若预览为空白或报错，多半是对方安全策略拦截。可新标签打开，或在编辑中改为「新标签页」。
+                </p>
+                <div className="iframe-embed-hint-actions">
+                  <a
+                    className="iframe-hint-btn primary"
+                    href={url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Icons.ExternalLink size={14} />
+                    新标签打开
+                  </a>
+                  <button
+                    type="button"
+                    className="iframe-hint-btn"
+                    onClick={() => setShowEmbedHint(false)}
+                  >
+                    关闭提示
+                  </button>
+                  {onClose && (
+                    <button
+                      type="button"
+                      className="iframe-hint-btn"
+                      onClick={onClose}
+                    >
+                      关闭预览
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             <iframe
               // 稳定 key：同 session 不重建，最小化恢复不刷新
               key={sessionKey || url}
@@ -133,6 +182,19 @@ export default function IframeViewer({
               >
                 <Icons.ExternalLink size={15} />
               </a>
+            </QuickTooltip>
+            <QuickTooltip content="预览空白？" side="right">
+              <button
+                type="button"
+                className={`iframe-tool-btn${showEmbedHint ? ' is-active' : ''}`}
+                onClick={() => {
+                  setLoading(false);
+                  setShowEmbedHint((v) => !v);
+                }}
+                aria-label="预览空白帮助"
+              >
+                <Icons.CircleHelp size={15} />
+              </button>
             </QuickTooltip>
             {onMinimize && (
               <QuickTooltip content="最小化" side="right">
@@ -262,6 +324,72 @@ export default function IframeViewer({
           pointer-events: none;
         }
 
+        .iframe-embed-hint {
+          position: absolute;
+          inset: 0;
+          z-index: 3;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 24px 20px;
+          text-align: center;
+          background: rgba(12, 14, 20, 0.92);
+          color: rgba(255, 255, 255, 0.88);
+        }
+
+        .iframe-embed-hint-title {
+          margin: 4px 0 0;
+          font-size: 14px;
+          font-weight: 600;
+        }
+
+        .iframe-embed-hint-desc {
+          margin: 0;
+          max-width: 280px;
+          font-size: 12px;
+          line-height: 1.5;
+          color: rgba(255, 255, 255, 0.55);
+        }
+
+        .iframe-embed-hint-actions {
+          display: flex;
+          flex-wrap: wrap;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          margin-top: 10px;
+        }
+
+        .iframe-hint-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+          padding: 7px 12px;
+          border-radius: 8px;
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          background: rgba(255, 255, 255, 0.08);
+          color: rgba(255, 255, 255, 0.85);
+          font-size: 12.5px;
+          cursor: pointer;
+          text-decoration: none;
+          transition: background 0.15s;
+        }
+
+        .iframe-hint-btn:hover {
+          background: rgba(255, 255, 255, 0.14);
+        }
+
+        .iframe-hint-btn.primary {
+          background: rgba(59, 130, 246, 0.55);
+          border-color: rgba(59, 130, 246, 0.45);
+        }
+
+        .iframe-hint-btn.primary:hover {
+          background: rgba(59, 130, 246, 0.75);
+        }
+
         .iframe-viewer-rail {
           display: flex;
           flex-direction: column;
@@ -310,7 +438,8 @@ export default function IframeViewer({
           background: rgba(255, 255, 255, 0.12);
         }
 
-        .iframe-device-btn.is-active {
+        .iframe-device-btn.is-active,
+        .iframe-tool-btn.is-active {
           color: #fff;
           background: rgba(59, 130, 246, 0.5);
         }

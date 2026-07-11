@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import * as Icons from 'lucide-react';
-import { SEARCH_ENGINES } from '../utils/defaultData';
+import { DEFAULT_SETTINGS, SEARCH_ENGINES } from '../utils/defaultData';
 import WallpaperLibrary from './WallpaperLibrary';
 import { changeAdminPassword } from '../utils/api';
 import {
@@ -9,6 +9,12 @@ import {
   normalizeWallpaperSettings,
   updateWallpaperField,
 } from '../utils/wallpaper';
+import {
+  buildBackupPayload,
+  buildClearedConfig,
+  downloadBackup,
+  parseBackupFile,
+} from '../utils/backup';
 import PasswordInput from './PasswordInput';
 import SearchEngineIcon from './SearchEngineIcon';
 
@@ -16,7 +22,11 @@ export default function SettingsModal({
   isOpen,
   onClose,
   settings,
+  categories = [],
+  shortcuts = [],
   onUpdateSettings,
+  onRestoreConfig,
+  onConfirmRestore,
 }) {
   const [activeTab, setActiveTab] = useState('wallpaper');
   const [wpLibOpen, setWpLibOpen] = useState(false);
@@ -26,8 +36,100 @@ export default function SettingsModal({
   const [pwdBusy, setPwdBusy] = useState(false);
   const [pwdError, setPwdError] = useState('');
   const [pwdOk, setPwdOk] = useState('');
+  const [backupBusy, setBackupBusy] = useState(false);
+  const [backupError, setBackupError] = useState('');
+  const [backupOk, setBackupOk] = useState('');
+  const backupInputRef = useRef(null);
 
   if (!isOpen) return null;
+
+  const handleExportBackup = () => {
+    setBackupError('');
+    setBackupOk('');
+    try {
+      const payload = buildBackupPayload({ categories, shortcuts, settings });
+      downloadBackup(payload);
+      setBackupOk('备份已下载');
+    } catch (err) {
+      setBackupError(err.message || '导出失败');
+    }
+  };
+
+  const handleBackupFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    setBackupError('');
+    setBackupOk('');
+    if (!file) return;
+
+    let cfg;
+    try {
+      cfg = await parseBackupFile(file);
+    } catch (err) {
+      setBackupError(err.message || '解析失败');
+      return;
+    }
+
+    const catN = cfg.categories.length;
+    const scN = cfg.shortcuts.length;
+    const runRestore = () => {
+      setBackupBusy(true);
+      setBackupError('');
+      setBackupOk('');
+      Promise.resolve(onRestoreConfig?.(cfg))
+        .then(() => {
+          setBackupOk(
+            `已还原：${catN} 个分类、${scN} 个快捷方式及全局设置`
+          );
+        })
+        .catch((err) => {
+          setBackupError(err?.message || '还原失败');
+        })
+        .finally(() => setBackupBusy(false));
+    };
+
+    if (onConfirmRestore) {
+      onConfirmRestore({
+        title: '从备份还原',
+        message: `将用备份全量覆盖当前数据（${catN} 个分类、${scN} 个快捷方式及设置）。此操作不可撤销，建议先导出当前备份。`,
+        confirmText: '确认还原',
+        onConfirm: runRestore,
+      });
+    } else {
+      runRestore();
+    }
+  };
+
+  const handleClearData = () => {
+    setBackupError('');
+    setBackupOk('');
+    const cfg = buildClearedConfig(categories, DEFAULT_SETTINGS);
+    const runClear = () => {
+      setBackupBusy(true);
+      setBackupError('');
+      setBackupOk('');
+      Promise.resolve(onRestoreConfig?.(cfg))
+        .then(() => {
+          setBackupOk('已清空：仅保留「常用推荐」分类，快捷方式已全部删除，设置已恢复默认');
+        })
+        .catch((err) => {
+          setBackupError(err?.message || '清空失败');
+        })
+        .finally(() => setBackupBusy(false));
+    };
+
+    if (onConfirmRestore) {
+      onConfirmRestore({
+        title: '清空全部数据',
+        message:
+          '将删除全部分类与快捷方式（仅保留「常用推荐」空分类），全局设置恢复为默认。此操作不可撤销，建议先导出备份。',
+        confirmText: '确认清空',
+        onConfirm: runClear,
+      });
+    } else {
+      runClear();
+    }
+  };
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
@@ -115,6 +217,13 @@ export default function SettingsModal({
             >
               <Icons.ToggleLeft size={16} />
               <span>功能开关</span>
+            </button>
+            <button
+              className={`tab-btn ${activeTab === 'data' ? 'active' : ''}`}
+              onClick={() => setActiveTab('data')}
+            >
+              <Icons.Database size={16} />
+              <span>数据</span>
             </button>
             <button
               className={`tab-btn ${activeTab === 'account' ? 'active' : ''}`}
@@ -471,6 +580,63 @@ export default function SettingsModal({
               </div>
             )}
 
+            {activeTab === 'data' && (
+              <div className="pane-section animate-fade">
+                <h4>备份与还原</h4>
+                <p className="site-field-hint">
+                  导出包含分类、快捷方式与全局设置的 JSON。还原为全量覆盖；含自定义图标时文件可能偏大。
+                </p>
+                <div className="backup-actions">
+                  <button
+                    type="button"
+                    className="glass-btn"
+                    onClick={handleExportBackup}
+                    disabled={backupBusy}
+                  >
+                    <Icons.Download size={14} />
+                    导出备份
+                  </button>
+                  <button
+                    type="button"
+                    className="glass-btn"
+                    onClick={() => backupInputRef.current?.click()}
+                    disabled={backupBusy}
+                  >
+                    <Icons.Upload size={14} />
+                    {backupBusy ? '处理中…' : '从备份还原'}
+                  </button>
+                  <input
+                    ref={backupInputRef}
+                    type="file"
+                    accept="application/json,.json"
+                    style={{ display: 'none' }}
+                    onChange={handleBackupFileChange}
+                  />
+                </div>
+                <h4 style={{ marginTop: '24px' }}>清空数据</h4>
+                <p className="site-field-hint">
+                  删除全部分类与快捷方式，仅保留空的「常用推荐」；壁纸与布局等设置恢复默认。账号密码不受影响。
+                </p>
+                <div className="backup-actions">
+                  <button
+                    type="button"
+                    className="glass-btn backup-clear-btn"
+                    onClick={handleClearData}
+                    disabled={backupBusy}
+                  >
+                    <Icons.Trash2 size={14} />
+                    {backupBusy ? '处理中…' : '清空全部数据'}
+                  </button>
+                </div>
+                {backupError && (
+                  <p className="account-pwd-error backup-status">{backupError}</p>
+                )}
+                {backupOk && (
+                  <p className="account-pwd-ok backup-status">{backupOk}</p>
+                )}
+              </div>
+            )}
+
             {activeTab === 'account' && (
               <div className="pane-section animate-fade">
                 <h4>修改管理员密码</h4>
@@ -544,6 +710,34 @@ export default function SettingsModal({
       />
 
       <style>{`
+        .backup-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 10px;
+          margin-top: 12px;
+        }
+
+        .backup-actions .glass-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .backup-status {
+          margin-top: 14px !important;
+        }
+
+        .backup-clear-btn {
+          color: #fecaca !important;
+          border-color: rgba(239, 68, 68, 0.35) !important;
+          background: rgba(239, 68, 68, 0.12) !important;
+        }
+
+        .backup-clear-btn:hover:not(:disabled) {
+          background: rgba(239, 68, 68, 0.22) !important;
+          border-color: rgba(239, 68, 68, 0.5) !important;
+        }
+
         .wp-current-row {
           display: flex;
           gap: 14px;

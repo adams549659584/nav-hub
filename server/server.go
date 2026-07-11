@@ -144,7 +144,8 @@ func New(opts Options) (http.Handler, error) {
 		})
 
 		api.With(sessions.RequireAdmin).Put("/admin/config", func(w http.ResponseWriter, req *http.Request) {
-			body, err := io.ReadAll(io.LimitReader(req.Body, 10<<20))
+			// 仅管理员可写；不人为截断 body（备份还原含 base64 图标时可能较大）
+			body, err := io.ReadAll(req.Body)
 			if err != nil {
 				jsonError(w, http.StatusBadRequest, "read body")
 				return

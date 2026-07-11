@@ -443,6 +443,33 @@ export default function App() {
     window.open(shortcut.url, '_blank', 'noopener,noreferrer');
   }, []);
 
+  /** 从备份全量还原并立即写库（绕过 debounce） */
+  const handleRestoreConfig = useCallback(
+    async (cfg) => {
+      if (!isAdmin) throw new Error('需要管理员权限');
+      const nextSettings = normalizeWallpaperSettings({
+        ...DEFAULT_SETTINGS,
+        ...(cfg.settings || {}),
+      });
+      skipPersist.current = true;
+      setCategories(Array.isArray(cfg.categories) ? cfg.categories : []);
+      setShortcuts(Array.isArray(cfg.shortcuts) ? cfg.shortcuts : []);
+      setSettings(nextSettings);
+      setActiveCategoryId((prev) => {
+        const cats = Array.isArray(cfg.categories) ? cfg.categories : [];
+        if (cats.some((c) => c.id === prev)) return prev;
+        return findCommonCategoryId(cats);
+      });
+      await saveAdminConfig({
+        categories: cfg.categories,
+        shortcuts: cfg.shortcuts,
+        settings: nextSettings,
+      });
+      setSaveError('');
+    },
+    [isAdmin]
+  );
+
   const minimizeIframe = useCallback(() => {
     setActiveIframeKey(null);
   }, []);
@@ -730,7 +757,18 @@ export default function App() {
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
           settings={settings}
+          categories={categories}
+          shortcuts={shortcuts}
           onUpdateSettings={setSettings}
+          onRestoreConfig={handleRestoreConfig}
+          onConfirmRestore={(opts) =>
+            setConfirmDialog({
+              title: opts.title,
+              message: opts.message,
+              confirmText: opts.confirmText || '还原',
+              onConfirm: opts.onConfirm,
+            })
+          }
         />
       )}
 
