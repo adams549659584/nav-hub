@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/adams549659584/nav-hub/internal/auth"
@@ -68,7 +69,12 @@ func New(opts Options) (http.Handler, error) {
 		MaxAge:           300,
 	}))
 
+	// API 单独挂载，避免被静态 /* 抢路由；也避免 Vercel 的 /api 目录函数与容器抢路径。
 	r.Route("/api", func(api chi.Router) {
+		api.Get("/health", func(w http.ResponseWriter, _ *http.Request) {
+			jsonOK(w, map[string]string{"ok": "1"})
+		})
+
 		api.Get("/public/config", func(w http.ResponseWriter, req *http.Request) {
 			cfg, err := db.LoadConfig(req.Context())
 			if err != nil {
@@ -166,11 +172,29 @@ func New(opts Options) (http.Handler, error) {
 		})
 	})
 
-	r.Handle("/*", static.Handler())
+	// 仅处理非 /api 的前端资源；/api 未匹配时返回 JSON 404，避免落成 SPA
+	staticH := static.Handler()
+	r.NotFound(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if strings.HasPrefix(req.URL.Path, "/api") {
+			jsonError(w, http.StatusNotFound, "not found")
+			return
+		}
+		staticH.ServeHTTP(w, req)
+	}))
+	r.MethodNotAllowed(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		if strings.HasPrefix(req.URL.Path, "/api") {
+			jsonError(w, http.StatusMethodNotAllowed, "method not allowed")
+			return
+		}
+		staticH.ServeHTTP(w, req)
+	}))
+	// GET/HEAD 静态资源与 SPA
+	r.Get("/*", staticH.ServeHTTP)
+	r.Head("/*", staticH.ServeHTTP)
 	return r, nil
 }
 
-// Addr 返回监听地址（仅本地进程使用）。
+// Addr 返回监听地址。ListenAndServe 优先使用 PORT；镜像默认 PORT=8080。
 func Addr() string {
 	return env("ADDR", ":8080")
 }

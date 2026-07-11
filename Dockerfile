@@ -1,23 +1,24 @@
 # syntax=docker/dockerfile:1
+# 自托管镜像（docker compose / GHCR）：多架构交叉编译 + 数据卷 /data
+# 容器内统一监听 8080
 
-# 前端产物与架构无关，固定在构建机原生平台上构建，避免 arm64 下 QEMU 装 pnpm
+# 前端：固定在构建机原生平台，避免 arm64 QEMU 下 pnpm 异常
 FROM --platform=$BUILDPLATFORM node:20-alpine AS web-build
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 WORKDIR /app/web
 COPY web/package.json web/pnpm-lock.yaml ./
 ENV CI=true
-# pnpm 11+ 默认校验 minimumReleaseAge，lock 里 vite/rolldown 等新包会在 CI 被拒
 ENV PNPM_CONFIG_MINIMUM_RELEASE_AGE=0
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     pnpm install --frozen-lockfile
 COPY web/ ./
 RUN pnpm build
 
-# Go 交叉编译：在构建机原生平台编译目标 GOARCH，无需 QEMU 跑 go build
+# Go：在构建机上交叉编译目标 GOARCH
 FROM --platform=$BUILDPLATFORM golang:1.22-alpine AS go-build
 ARG TARGETOS
 ARG TARGETARCH
-RUN apk add --no-cache git
+RUN apk add --no-cache git ca-certificates
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN --mount=type=cache,target=/go/pkg/mod \
@@ -25,7 +26,6 @@ RUN --mount=type=cache,target=/go/pkg/mod \
 COPY . .
 RUN rm -rf internal/static/dist && mkdir -p internal/static/dist
 COPY --from=web-build /app/web/dist/ internal/static/dist/
-# 确保前端产物进镜像（go:embed all:dist）；缺 assets 时让构建直接失败
 RUN test -f internal/static/dist/index.html \
   && ls internal/static/dist/assets/*.js >/dev/null \
   && ls internal/static/dist/assets/*.css >/dev/null
@@ -43,7 +43,7 @@ COPY docker-entrypoint.sh /app/docker-entrypoint.sh
 RUN chmod +x /app/docker-entrypoint.sh \
   && mkdir -p /data \
   && chown app:app /data
-# 以 root 进入 entrypoint：挂载卷后 chown /data，再 su-exec 到 app
+ENV PORT=8080
 ENV ADDR=:8080
 ENV DATABASE_DSN=file:/data/app.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)
 EXPOSE 8080

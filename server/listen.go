@@ -8,15 +8,9 @@ import (
 )
 
 // ListenAndServe 启动 HTTP 服务。
-// Vercel Go Framework Preset 注入 PORT；本地默认用 ADDR（:8080）。
+// 优先级：PORT → ADDR（默认 :8080）。Docker / Dockerfile.vercel 均设 PORT=8080。
 func ListenAndServe(h http.Handler) error {
-	addr := Addr()
-	if port := os.Getenv("PORT"); port != "" {
-		if !strings.HasPrefix(port, ":") {
-			port = ":" + port
-		}
-		addr = port
-	}
+	addr := resolveListenAddr()
 
 	srv := &http.Server{
 		Addr:              addr,
@@ -29,4 +23,14 @@ func ListenAndServe(h http.Handler) error {
 		return err
 	}
 	return nil
+}
+
+func resolveListenAddr() string {
+	if port := os.Getenv("PORT"); port != "" {
+		if !strings.HasPrefix(port, ":") {
+			port = ":" + port
+		}
+		return port
+	}
+	return Addr()
 }

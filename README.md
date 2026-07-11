@@ -103,19 +103,20 @@ docker compose up -d
 
 > ⭐ **仅适合演示 / 试用**。容器无持久磁盘，SQLite 落在 `/tmp`，**冷启动、新实例或重新部署后数据会丢失**。长期自托管请用 Docker 或本地二进制。
 
-一键部署，点这里 => [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/adams549659584/nav-hub&project-name=nav-hub&repository-name=nav-hub&env=SESSION_SECRET,ADMIN_USER,ADMIN_PASSWORD&envDescription=%E7%94%9F%E4%BA%A7%E5%8A%A1%E5%BF%85%E4%BF%AE%E6%94%B9%20SESSION_SECRET%20%E4%B8%8E%E7%AE%A1%E7%90%86%E5%91%98%E5%AF%86%E7%A0%81&envLink=https://github.com/adams549659584/nav-hub#%E7%8E%AF%E5%A2%83%E5%8F%98%E9%87%8F)
+一键部署，点这里 => [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/adams549659584/nav-hub&project-name=nav-hub&repository-name=nav-hub&env=PORT,SESSION_SECRET,ADMIN_USER,ADMIN_PASSWORD&envDefaults=%7B%22PORT%22%3A%228080%22%7D&envDescription=PORT%20%E5%BF%85%E9%A1%BB%E4%B8%BA%208080%EF%BC%88%E4%B8%8E%E9%95%9C%E5%83%8F%E4%B8%80%E8%87%B4%EF%BC%89%EF%BC%9B%E7%94%9F%E4%BA%A7%E5%8A%A1%E5%BF%85%E4%BF%AE%20SESSION_SECRET%20%E4%B8%8E%E7%AE%A1%E7%90%86%E5%91%98%E5%AF%86%E7%A0%81&envLink=https://github.com/adams549659584/nav-hub#%E7%8E%AF%E5%A2%83%E5%8F%98%E9%87%8F)
 
 **方式：根目录 [`Dockerfile.vercel`](./Dockerfile.vercel)**（[Running Docker on Vercel](https://vercel.com/kb/guide/docker)）
 
 1. 检测 `Dockerfile.vercel` → 构建 OCI 镜像（多阶段：`pnpm build` → `go:embed` → 二进制）  
 2. 推到 **Vercel Container Registry (VCR)**  
-3. 部署到 **Fluid compute**，流量自动路由到容器  
-4. 进程监听平台 **`$PORT`**（`server.ListenAndServe`）
+3. 部署到 **Fluid compute**，流量按 **`PORT`** 打进容器  
+4. 进程监听 **8080**（与自托管一致；Vercel 平台默认会走 80，**必须**配置环境变量 `PORT=8080`）
 
 环境变量（**Settings → Environment Variables**）：
 
 | 变量 | 建议 |
 |------|------|
+| **`PORT`** | **`8080`**（必填；让平台把流量转到容器 8080，与镜像内监听一致） |
 | `SESSION_SECRET` | 随机长字符串（**必改**） |
 | `ADMIN_USER` | 首次初始化管理员用户名 |
 | `ADMIN_PASSWORD` | 首次初始化管理员密码（仅灌库一次） |
@@ -163,7 +164,8 @@ make dev-web        # Vite → http://localhost:5173（/api 代理到 8080）
 
 | 变量 | 默认（本地） | 说明 |
 |------|----------------|------|
-| `ADDR` | `:8080` | 监听地址 |
+| `PORT` | `8080`（镜像内） | 优先于 `ADDR`；**容器统一 8080**。Vercel 项目环境变量也须为 `8080`（平台默认连 80） |
+| `ADDR` | `:8080` | 未设 `PORT` 时的监听地址（本地 `go run`） |
 | `DATABASE_DSN` | `file:./data/app.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)` | SQLite DSN；Docker 内为 `file:/data/app.db?...`；Vercel 未设置时为 `/tmp/nav-hub.db`（不持久） |
 | `ADMIN_USER` | `admin` | 首次初始化管理员用户名 |
 | `ADMIN_PASSWORD` | `admin` | 首次初始化管理员密码（仅灌库一次；之后改密见下） |
@@ -195,27 +197,17 @@ make dev-web        # Vite → http://localhost:5173（/api 代理到 8080）
 
 ```
 nav-hub/
-├── api/                  # 可选：旧式 Serverless Handler
-├── cmd/nav-hub/          # 本地 / Docker / Dockerfile.vercel 入口
-├── cmd/server/           # 兼容保留（原 Go Framework 入口）
-├── server/               # HTTP 路由与启动（不可放 internal）
-├── Dockerfile.vercel     # Vercel 容器部署（自动构建前端）
-├── internal/
-│   ├── auth/             # Cookie Session
-│   ├── favicon/          # 站点图标抓取
-│   ├── seed/             # 首次灌库 seed.json
-│   ├── static/dist/      # go:embed；仓库仅占位，构建后才有完整 SPA
-│   ├── store/            # SQLite 读写
-│   └── wallpaper/        # 壁纸代理
-├── web/                  # React + Vite 前端
-├── .vscode/              # 调试与推荐扩展
-├── Dockerfile
+├── cmd/nav-hub/          # 唯一 Go 入口
+├── server/               # HTTP 路由（勿放 internal，供镜像外复用）
+├── internal/             # store / auth / seed / static / wallpaper …
+├── web/                  # React + Vite
+├── Dockerfile            # 自托管（多架构、/data 卷）
+├── Dockerfile.vercel     # Vercel 容器（勿加根目录 api/，会抢 /api）
 ├── docker-compose.yml
 └── Makefile
 ```
 
-
-`internal/static/dist/`：仓库只保留占位 `index.html`（满足 `go:embed`）；完整前端由 `make build-web`、Docker 或 Vercel 生成，**不要手改、不必提交构建产物**。
+`internal/static/dist/`：仓库仅占位 `index.html`；完整 SPA 由 `make build-web` / `Dockerfile` / `Dockerfile.vercel` 生成。
 
 ---
 

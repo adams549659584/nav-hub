@@ -1,9 +1,8 @@
 # syntax=docker/dockerfile:1
-# Vercel 自动检测本文件：构建镜像 → VCR → Fluid compute，并路由全部流量。
-# 服务须监听 $PORT（见 server.ListenAndServe）。
-# https://vercel.com/kb/guide/docker
+# Vercel 自动检测 → 镜像 → VCR → Fluid compute。
+# 默认监听 8080（与自托管一致）。平台默认连 80，故镜像与部署须带 PORT=8080。
+# 勿在仓库放 api/*.go，会抢 /api。https://vercel.com/kb/guide/docker
 
-# ---------- 前端 ----------
 FROM node:20-alpine AS web-build
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 WORKDIR /app/web
@@ -14,7 +13,6 @@ RUN pnpm install --frozen-lockfile
 COPY web/ ./
 RUN pnpm build
 
-# ---------- Go（嵌入前端） ----------
 FROM golang:1.22-alpine AS go-build
 RUN apk add --no-cache git ca-certificates
 WORKDIR /app
@@ -28,13 +26,14 @@ RUN test -f internal/static/dist/index.html \
   && ls internal/static/dist/assets/*.css >/dev/null
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /nav-hub ./cmd/nav-hub
 
-# ---------- 运行 ----------
 FROM alpine:3.20
 RUN apk add --no-cache ca-certificates tzdata
 WORKDIR /app
 COPY --from=go-build /nav-hub /app/nav-hub
-# 无持久盘：SQLite 放 /tmp
 ENV DATABASE_DSN=file:/tmp/nav-hub.db?_pragma=foreign_keys(1)&_pragma=busy_timeout(5000)
-# Vercel 注入 PORT；未设置时 ListenAndServe 回退 ADDR :8080
+# 进程监听 8080；Vercel 需用同名环境变量把流量打到 8080（一键部署会提示配置）
+ENV PORT=8080
+ENV ADDR=:8080
+ENV VERCEL=1
 EXPOSE 8080
 CMD ["/app/nav-hub"]

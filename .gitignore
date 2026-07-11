@@ -10,7 +10,7 @@ lerna-debug.log*
 node_modules
 /dist
 web/dist
-# go:embed 目录：仅提交占位 index.html；真实产物由 make build-web / Docker / Vercel 生成
+# go:embed：仅提交占位 index.html；完整 SPA 由 make build-web / Docker / Dockerfile.vercel 生成
 internal/static/dist/**
 !internal/static/dist/index.html
 dist-ssr
@@ -22,16 +22,17 @@ dist-ssr
 *.test
 /data/
 
-# Editor directories and files
+# Editor / local
 .vscode/*
 !.vscode/extensions.json
 !.vscode/launch.json
 !.vscode/tasks.json
 !.vscode/settings.json
 .idea
+.claude/
 .DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?.claude/
+*.sw?
