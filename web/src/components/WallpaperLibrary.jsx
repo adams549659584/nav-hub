@@ -696,11 +696,11 @@ export default function WallpaperLibrary({
             transform: scale(1.06);
             background: rgba(59, 130, 246, 0.85);
           }
-          /* 与设置页 .wp-fullscreen-preview 同级：挂在 fragment 下，真正盖住视口 */
+          /* 须高于 .wp-lib-overlay(5000)，否则库弹窗（含标题栏）会挡住全屏预览 */
           .wp-lib-fullscreen {
             position: fixed;
             inset: 0;
-            z-index: 400;
+            z-index: 5100;
             display: flex;
             align-items: center;
             justify-content: center;
