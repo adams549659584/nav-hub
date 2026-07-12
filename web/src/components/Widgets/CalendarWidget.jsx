@@ -68,7 +68,8 @@ export default function CalendarWidget({ sizeX = 2, sizeY = 2, isHeader = false 
             justify-content: center;
             text-align: center;
             margin-top: 24px;
-            margin-bottom: -16px;
+            /* 与搜索栏间距（勿用负 margin，否则会贴死） */
+            margin-bottom: 12px;
             color: #ffffff;
             text-shadow: 0 4px 16px rgba(0, 0, 0, 0.45), 0 2px 4px rgba(0, 0, 0, 0.2);
             animation: fadeIn 0.4s ease;
@@ -123,6 +124,49 @@ export default function CalendarWidget({ sizeX = 2, sizeY = 2, isHeader = false 
             font-size: 12px;
             border-left: 1px solid rgba(255, 255, 255, 0.3);
             padding-left: 8px;
+          }
+
+          /* 移动端：日期与搜索栏拉开间距 */
+          @media (max-width: 768px) {
+            .centered-clock-header {
+              margin-top: 4px !important;
+              margin-bottom: 12px !important;
+            }
+
+            .time-hours-header,
+            .time-minutes-header,
+            .time-seconds-header {
+              font-size: 52px;
+            }
+
+            .time-colon-header {
+              font-size: 44px;
+            }
+
+            .date-display-header {
+              margin-top: 6px;
+              margin-bottom: 0;
+              flex-wrap: wrap;
+              justify-content: center;
+              row-gap: 4px;
+            }
+          }
+
+          @media (max-width: 480px) {
+            .centered-clock-header {
+              margin-top: 2px !important;
+              margin-bottom: 12px !important;
+            }
+
+            .time-hours-header,
+            .time-minutes-header,
+            .time-seconds-header {
+              font-size: 44px;
+            }
+
+            .time-colon-header {
+              font-size: 38px;
+            }
           }
         `}</style>
       </div>

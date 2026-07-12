@@ -141,6 +141,38 @@ export default function ConfirmModal({
           .danger-btn:hover {
             background: rgba(239, 68, 68, 0.95) !important;
           }
+
+          @media (max-width: 768px) {
+            .modal-overlay {
+              padding: 0;
+              align-items: stretch;
+              justify-content: stretch;
+            }
+
+            .confirm-modal.modal-content,
+            .modal-content.confirm-modal {
+              width: 100% !important;
+              max-width: 100% !important;
+              height: auto;
+              max-height: none;
+              margin: auto 0 0;
+              border-radius: 16px 16px 0 0 !important;
+            }
+
+            .confirm-body {
+              padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px));
+            }
+
+            .modal-actions {
+              gap: 10px;
+            }
+
+            .modal-actions .glass-btn {
+              flex: 1;
+              justify-content: center;
+              min-height: 44px;
+            }
+          }
         `}</style>
       </div>
     </div>

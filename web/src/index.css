@@ -19,8 +19,23 @@
   --text-color: #ffffff;
   --text-secondary: rgba(255, 255, 255, 0.65);
   --active-color: #3b82f6; /* Blue tint */
+
+  /* Layout / safe-area (mobile) */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --app-height: 100vh;
+  --mobile-header-h: 44px;
+  --sidebar-drawer-width: min(280px, 86vw);
   
   box-sizing: border-box;
+}
+
+@supports (height: 100dvh) {
+  :root {
+    --app-height: 100dvh;
+  }
 }
 
 * {
@@ -43,8 +58,9 @@ body {
   background: #000;
   overflow: hidden;
   user-select: none;
-  height: 100vh;
-  width: 100vw;
+  height: var(--app-height);
+  width: 100%;
+  max-width: 100%;
 }
 
 #root {
@@ -59,8 +75,8 @@ body {
 /* Background Wallpaper Manager */
 .app-container {
   display: flex;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: var(--app-height);
   position: relative;
   overflow: hidden;
   background: transparent;
@@ -285,8 +301,8 @@ button:disabled,
 
 .modal-content {
   width: 480px;
-  max-width: 90%;
-  max-height: 85vh;
+  max-width: min(90%, calc(100vw - 24px));
+  max-height: min(85vh, calc(var(--app-height) - 24px));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -317,4 +333,29 @@ button:disabled,
 
 .clickable:hover {
   filter: brightness(1.2);
+}
+
+
+/* Mobile responsive helpers */
+@media (max-width: 768px) {
+  .modal-content {
+    width: min(480px, calc(100vw - 24px));
+    max-width: calc(100vw - 24px);
+    max-height: calc(var(--app-height) - 16px - var(--safe-top) - var(--safe-bottom));
+  }
+}
+
+@media (max-width: 480px) {
+  .modal-content {
+    width: calc(100vw - 16px);
+    max-width: calc(100vw - 16px);
+    border-radius: 14px;
+  }
+}
+
+/* Prefer hiding keyboard-only chips on coarse pointers */
+@media (hover: none) and (pointer: coarse) {
+  .hide-on-touch {
+    display: none !important;
+  }
 }

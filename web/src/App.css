@@ -2,14 +2,15 @@
 
 .app-wrapper {
   display: flex;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: var(--app-height, 100vh);
   position: relative;
   overflow: hidden;
 }
 
 .main-content {
   flex: 1;
+  min-width: 0;
   height: 100%;
   display: flex;
   flex-direction: column;
@@ -18,7 +19,9 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding: 40px 24px;
+  padding-bottom: calc(40px + var(--safe-bottom, 0px));
   z-index: 10;
+  -webkit-overflow-scrolling: touch;
 }
 
 .edit-mode-indicator {
@@ -47,4 +50,74 @@
   font-size: 12px;
   text-decoration: underline;
   margin-left: 4px;
+}
+
+/* Mobile nav overlay (sidebar drawer) */
+.mobile-nav-overlay {
+  display: none;
+}
+
+.mobile-menu-btn {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: calc(12px + var(--safe-top, 0px)) 12px calc(16px + var(--safe-bottom, 0px));
+    width: 100%;
+  }
+
+  .mobile-menu-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    padding: 0;
+    border-radius: 12px;
+    flex-shrink: 0;
+  }
+
+  .mobile-nav-overlay {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 55;
+    background: rgba(0, 0, 0, 0.45);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    animation: fadeIn 0.2s ease;
+  }
+
+  .edit-mode-indicator {
+    top: calc(8px + var(--safe-top, 0px));
+    right: 12px;
+    max-width: calc(100vw - 24px);
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .main-content {
+    padding: calc(10px + var(--safe-top, 0px)) 10px calc(14px + var(--safe-bottom, 0px));
+  }
+}
+
+/* clock-search spacing ~12px */
+.centered-clock-header { margin-bottom: 12px !important; }
+.main-content > .search-bar-wrapper { margin-top: 0 !important; }
+@media (max-width: 768px) {
+  .centered-clock-header { margin-top: 8px !important; margin-bottom: 12px !important; }
+  .main-content > .search-bar-wrapper { margin-top: 0 !important; margin-bottom: 20px !important; }
+  .time-hours-header, .time-minutes-header, .time-seconds-header { font-size: 52px !important; }
+  .time-colon-header { font-size: 44px !important; }
+}
+@media (max-width: 480px) {
+  .centered-clock-header { margin-top: 4px !important; margin-bottom: 10px !important; }
+  .time-hours-header, .time-minutes-header, .time-seconds-header { font-size: 44px !important; }
+  .time-colon-header { font-size: 38px !important; }
 }

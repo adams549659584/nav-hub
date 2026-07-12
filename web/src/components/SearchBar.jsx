@@ -274,7 +274,7 @@ export default function SearchBar({
           {typeof onOpenCommand === 'function' && (
             <button
               type="button"
-              className="search-cmd-chip"
+              className="search-cmd-chip hide-on-touch"
               onClick={onOpenCommand}
               title={`命令面板（${modKey}+K 或 /）`}
               aria-label="打开命令面板"
@@ -369,9 +369,9 @@ export default function SearchBar({
 
         .search-bar-wrapper {
           position: relative;
-          width: 560px;
-          max-width: 90%;
-          margin: 40px auto 48px auto;
+          width: min(560px, 100%);
+          max-width: 100%;
+          margin: 4px auto 48px auto;
           z-index: 30;
         }
 
@@ -460,6 +460,11 @@ export default function SearchBar({
           gap: 4px;
           border-radius: 12px;
           z-index: 40;
+          background: rgba(18, 22, 32, 0.94) !important;
+          backdrop-filter: blur(24px) saturate(1.2);
+          -webkit-backdrop-filter: blur(24px) saturate(1.2);
+          border: 1px solid rgba(255, 255, 255, 0.14);
+          box-shadow: 0 14px 36px rgba(0, 0, 0, 0.5);
         }
 
         .dropdown-item {
@@ -587,6 +592,29 @@ export default function SearchBar({
           flex-direction: column;
           gap: 2px;
         }
+
+        @media (max-width: 768px) {
+          .search-bar-wrapper {
+            width: min(560px, 100%);
+            max-width: 100%;
+            margin: 0 auto 24px auto;
+            padding: 0 2px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .search-bar-wrapper {
+            margin: 0 auto 20px auto;
+          }
+        }
+
+        @media (hover: none) {
+          .search-cmd-chip.hide-on-touch,
+          .hide-on-touch.search-cmd-chip {
+            display: none !important;
+          }
+        }
+
       `}</style>
     </div>
   );

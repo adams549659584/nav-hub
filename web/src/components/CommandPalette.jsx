@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import * as Icons from 'lucide-react';
 import { SEARCH_ENGINES } from '../utils/defaultData';
 import { buildCommandSections, looksLikeUrl, normalizeOpenUrl } from '../utils/commandItems';
@@ -161,7 +162,7 @@ export default function CommandPalette({
 
   let runningIndex = -1;
 
-  return (
+  return createPortal(
     <div
       className="cmd-palette-overlay"
       onMouseDown={(e) => {
@@ -263,8 +264,8 @@ export default function CommandPalette({
         .cmd-palette-overlay {
           position: fixed;
           inset: 0;
-          /* 高于站内预览(220)与托盘(210)，保证命令面板永远在最顶层 */
-          z-index: 300;
+          /* 全局最高：压过设置/壁纸库全屏预览(400)、站内预览(80)等一切浮层 */
+          z-index: 10000;
           display: flex;
           align-items: flex-start;
           justify-content: center;
@@ -281,8 +282,10 @@ export default function CommandPalette({
         }
 
         .cmd-palette {
-          width: min(560px, 100%);
-          max-height: min(72vh, 560px);
+          width: min(560px, calc(100vw - 24px));
+          max-width: min(560px, calc(100vw - 24px));
+          max-height: min(80dvh, 560px);
+          overflow: hidden;
           display: flex;
           flex-direction: column;
           border-radius: 16px;
@@ -395,8 +398,28 @@ export default function CommandPalette({
           background: rgba(255, 255, 255, 0.08);
           border: 1px solid rgba(255, 255, 255, 0.1);
         }
+
+        @media (max-width: 768px) {
+          .cmd-palette-overlay {
+            /* 水平 + 垂直居中，兼顾安全区 */
+            align-items: center;
+            justify-content: center;
+            padding: max(12px, env(safe-area-inset-top, 0px))
+              max(12px, env(safe-area-inset-right, 0px))
+              max(12px, env(safe-area-inset-bottom, 0px))
+              max(12px, env(safe-area-inset-left, 0px));
+          }
+          .cmd-palette {
+            width: min(560px, calc(100vw - 24px));
+            max-width: min(560px, calc(100vw - 24px));
+            max-height: min(80dvh, calc(100dvh - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)));
+            margin: 0 auto;
+          }
+        }
+
       `}</style>
-    </div>
+    </div>,
+    document.body
   );
 }
 

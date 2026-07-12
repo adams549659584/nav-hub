@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import * as Icons from 'lucide-react';
 import ShortcutIcon from './ShortcutIcon';
 
@@ -18,6 +18,33 @@ export default function Dashboard({
   // App 已按当前分类过滤，这里不再二次 filter
   const list = shortcuts;
   const [dropTargetId, setDropTargetId] = useState(null);
+  const [viewportWidth, setViewportWidth] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth : 1200
+  );
+
+  useEffect(() => {
+    const mediaCompact = window.matchMedia('(max-width: 479px)');
+    const mediaMobile = window.matchMedia('(max-width: 768px)');
+    const syncViewportWidth = () => setViewportWidth(window.innerWidth);
+    syncViewportWidth();
+    mediaCompact.addEventListener('change', syncViewportWidth);
+    mediaMobile.addEventListener('change', syncViewportWidth);
+    window.addEventListener('resize', syncViewportWidth);
+    return () => {
+      mediaCompact.removeEventListener('change', syncViewportWidth);
+      mediaMobile.removeEventListener('change', syncViewportWidth);
+      window.removeEventListener('resize', syncViewportWidth);
+    };
+  }, []);
+
+  const settingsColumns = settings.columns || 6;
+  // Clamp columns on narrow viewports so tiles stay tappable
+  let effectiveColumns = settingsColumns;
+  if (viewportWidth < 480) {
+    effectiveColumns = Math.min(settingsColumns, 4);
+  } else if (viewportWidth <= 768) {
+    effectiveColumns = Math.min(settingsColumns, 5);
+  }
 
   const getRowHeight = () => {
     switch (settings.iconSize) {
@@ -46,7 +73,7 @@ export default function Dashboard({
         <div
           className="shortcuts-grid"
           style={{
-            gridTemplateColumns: `repeat(${settings.columns || 6}, minmax(0, 1fr))`,
+            gridTemplateColumns: `repeat(${effectiveColumns}, minmax(0, 1fr))`,
             gridAutoRows: `${getRowHeight()}px`,
             gap: `${settings.gap || 24}px`,
           }}
@@ -177,6 +204,28 @@ export default function Dashboard({
           .shortcuts-area {
             width: 100%;
             max-width: 560px;
+          }
+        }
+
+        @media (max-width: 768px) {
+          .dashboard-container {
+            padding: 0 2px;
+            gap: 16px;
+          }
+
+          .shortcuts-area {
+            max-width: 100%;
+            gap: 20px;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .dashboard-container {
+            padding: 0;
+          }
+
+          .add-shortcut-label {
+            font-size: 10px;
           }
         }
       `}</style>

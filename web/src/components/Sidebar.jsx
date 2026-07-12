@@ -17,16 +17,46 @@ export default function Sidebar({
   logoText = 'iT',
   logoBgColor = '#535353',
   logoBgColorEnd = '#000000',
+  isMobileOpen = false,
+  onMobileClose,
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, category: null });
   const [dragOverCatId, setDragOverCatId] = useState(null);
+  const [isMobileViewport, setIsMobileViewport] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false
+  );
 
   useEffect(() => {
     const closeMenu = () => setContextMenu({ visible: false, x: 0, y: 0, category: null });
     window.addEventListener('click', closeMenu);
     return () => window.removeEventListener('click', closeMenu);
   }, []);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 768px)');
+    const onChange = (event) => setIsMobileViewport(event.matches);
+    onChange(mediaQuery);
+    mediaQuery.addEventListener('change', onChange);
+    return () => mediaQuery.removeEventListener('change', onChange);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileOpen || !isMobileViewport) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') onMobileClose?.();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isMobileOpen, isMobileViewport, onMobileClose]);
+
+  const selectCategory = (categoryId) => {
+    setActiveCategoryId(categoryId);
+    if (isMobileViewport) onMobileClose?.();
+  };
+
+  // On mobile drawer, always show expanded labels
+  const showExpanded = isMobileViewport ? true : isExpanded;
 
   const renderIcon = (iconName, size = 20) => {
     const IconComponent = Icons[iconName] || Icons.Grid;
@@ -95,26 +125,44 @@ export default function Sidebar({
   };
 
   return (
-    <div className={`sidebar-container glass-card ${isExpanded ? 'expanded' : 'collapsed'}`}>
+    <div
+      className={`sidebar-container glass-card ${showExpanded ? 'expanded' : 'collapsed'}${isMobileViewport ? ' is-mobile-drawer' : ''}${isMobileViewport && isMobileOpen ? ' is-mobile-open' : ''}`}
+      aria-hidden={isMobileViewport && !isMobileOpen ? true : undefined}
+    >
       <div className="logo-section">
-        {isExpanded ? (
+        {showExpanded ? (
           <>
             <div className="logo-icon" style={logoStyle} title={displayLogo}>
               {displayLogo}
             </div>
-            <button
-              className="sidebar-toggle-btn flex-center"
-              onClick={() => setIsExpanded(false)}
-              title="收起侧边栏"
-            >
-              <Icons.ChevronLeft size={16} />
-            </button>
+            {!isMobileViewport && (
+              <button
+                className="sidebar-toggle-btn flex-center"
+                onClick={() => setIsExpanded(false)}
+                title="收起侧边栏"
+                type="button"
+              >
+                <Icons.ChevronLeft size={16} />
+              </button>
+            )}
+            {isMobileViewport && (
+              <button
+                className="sidebar-close-btn flex-center"
+                onClick={() => onMobileClose?.()}
+                title="关闭"
+                type="button"
+                aria-label="关闭"
+              >
+                <Icons.X size={20} />
+              </button>
+            )}
           </>
         ) : (
           <button
             className="logo-icon clickable"
             onClick={() => setIsExpanded(true)}
             title="展开侧边栏"
+            type="button"
             style={{ border: 'none', cursor: 'pointer', ...logoStyle }}
           >
             {displayLogo}
@@ -136,7 +184,7 @@ export default function Sidebar({
         >
           <button
             className={`nav-item ${allActive ? 'active' : ''}`}
-            onClick={() => setActiveCategoryId(ALL_CATEGORY_ID)}
+            onClick={() => selectCategory(ALL_CATEGORY_ID)}
             data-title="全部"
             type="button"
           >
@@ -152,14 +200,14 @@ export default function Sidebar({
             <div
               key={cat.id}
               className={`nav-item-wrapper${dragOverCatId === cat.id ? ' drop-target' : ''}`}
-              onContextMenu={isAdmin ? (e) => handleContextMenu(e, cat) : undefined}
+              onContextMenu={isAdmin && !isMobileViewport ? (e) => handleContextMenu(e, cat) : undefined}
               onDragOver={(e) => onCatDragOver(e, cat.id)}
               onDragLeave={() => setDragOverCatId((id) => (id === cat.id ? null : id))}
               onDrop={(e) => onCatDrop(e, cat.id)}
             >
               <button
                 className={`nav-item ${isActive ? 'active' : ''}${canDrag ? ' is-draggable' : ''}`}
-                onClick={() => setActiveCategoryId(cat.id)}
+                onClick={() => selectCategory(cat.id)}
                 data-title={cat.name}
                 type="button"
                 draggable={canDrag}
@@ -170,15 +218,46 @@ export default function Sidebar({
                 <span className="nav-label">{cat.name}</span>
               </button>
 
-              {isAdmin && isExpanded && (
-                <button
-                  className="more-options-btn"
-                  onClick={(e) => handleMoreClick(e, cat)}
-                  title="分类选项"
-                  type="button"
-                >
-                  <Icons.MoreHorizontal size={14} />
-                </button>
+              {isAdmin && showExpanded && (
+                isMobileViewport ? (
+                  <div className="category-inline-actions">
+                    <button
+                      className="category-action-btn"
+                      type="button"
+                      title="编辑分类"
+                      aria-label={`编辑分类 ${cat.name}`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onEditCategoryClick?.(cat);
+                      }}
+                    >
+                      <Icons.Pencil size={14} />
+                    </button>
+                    {categories.length > 1 && cat.code !== 'common' && (
+                      <button
+                        className="category-action-btn is-danger"
+                        type="button"
+                        title="删除分类"
+                        aria-label={`删除分类 ${cat.name}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onDeleteCategory?.(cat.id);
+                        }}
+                      >
+                        <Icons.Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                  <button
+                    className="more-options-btn"
+                    onClick={(e) => handleMoreClick(e, cat)}
+                    title="分类选项"
+                    type="button"
+                  >
+                    <Icons.MoreHorizontal size={14} />
+                  </button>
+                )
               )}
             </div>
           );
@@ -264,7 +343,8 @@ export default function Sidebar({
           flex-direction: column;
           align-items: center;
           padding: 20px 0;
-          border-radius: 0 16px 16px 0;
+          border-radius: 0 !important;
+          border: none !important;
           border-left: none;
           z-index: 50;
           flex-shrink: 0;
@@ -317,6 +397,29 @@ export default function Sidebar({
           transition: all 0.2s;
         }
         .sidebar-toggle-btn:hover { color: white; background: rgba(255,255,255,0.15); }
+
+        /* 与全局设置 .drawer-close-btn 统一 */
+        .sidebar-close-btn {
+          width: 32px;
+          height: 32px;
+          padding: 0;
+          border: none;
+          border-radius: 50%;
+          background: none;
+          color: rgba(255, 255, 255, 0.55);
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+          transition: color 0.2s, background 0.2s;
+        }
+
+        .sidebar-close-btn:hover {
+          color: #fff;
+          background: rgba(255, 255, 255, 0.08);
+        }
+
 
         .nav-items {
           display: flex;
@@ -428,6 +531,40 @@ export default function Sidebar({
           background: rgba(255, 255, 255, 0.05);
         }
 
+
+        .category-inline-actions {
+          display: none;
+        }
+
+        .category-action-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          width: 32px;
+          height: 32px;
+          padding: 0;
+          border: none;
+          border-radius: 8px;
+          background: rgba(255, 255, 255, 0.06);
+          color: rgba(255, 255, 255, 0.7);
+          cursor: pointer;
+          transition: background 0.15s, color 0.15s;
+        }
+
+        .category-action-btn:hover {
+          background: rgba(255, 255, 255, 0.12);
+          color: #fff;
+        }
+
+        .category-action-btn.is-danger {
+          color: #f87171;
+        }
+
+        .category-action-btn.is-danger:hover {
+          background: rgba(239, 68, 68, 0.18);
+          color: #fca5a5;
+        }
+
         .more-options-btn {
           position: absolute;
           right: 12px;
@@ -509,6 +646,86 @@ export default function Sidebar({
           left: 84px;
           transform: translateX(0);
         }
+
+        /* Mobile drawer */
+        .sidebar-container.is-mobile-drawer {
+          position: fixed;
+          top: 0;
+          left: 0;
+          height: var(--app-height, 100vh);
+          width: 100% !important;
+          max-width: 100%;
+          padding: calc(16px + var(--safe-top, 0px)) 16px calc(16px + var(--safe-bottom, 0px)) !important;
+          border-radius: 0 !important;
+          border: none !important;
+          z-index: 60;
+          transform: translateX(-105%);
+          transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+          pointer-events: none;
+          box-sizing: border-box;
+        }
+
+        .sidebar-container.is-mobile-drawer.is-mobile-open {
+          transform: translateX(0);
+          pointer-events: auto;
+        }
+
+        
+        .sidebar-container.is-mobile-drawer .more-options-btn {
+          display: none !important;
+        }
+
+        .sidebar-container.is-mobile-drawer .category-inline-actions {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          position: absolute;
+          right: 8px;
+          top: 50%;
+          transform: translateY(-50%);
+          z-index: 2;
+        }
+
+        .sidebar-container.is-mobile-drawer .nav-item-wrapper {
+          position: relative;
+        }
+
+        .sidebar-container.is-mobile-drawer .nav-item {
+          padding-right: 84px !important;
+        }
+
+        /* common 仅编辑：少一个按钮，预留稍窄 */
+        .sidebar-container.is-mobile-drawer .nav-item-wrapper:has(.category-inline-actions .category-action-btn:only-child) .nav-item {
+          padding-right: 48px !important;
+        }
+
+        .sidebar-container.is-mobile-drawer .logo-section {
+          justify-content: space-between !important;
+          padding: 0 4px;
+          margin-bottom: 20px;
+        }
+
+        .sidebar-container.is-mobile-drawer .nav-label {
+          display: inline !important;
+          opacity: 1 !important;
+          width: auto !important;
+          margin-left: 12px;
+        }
+        .sidebar-container.is-mobile-drawer .nav-item {
+          width: 100%;
+          justify-content: flex-start;
+          padding: 10px 12px;
+          border-radius: 12px;
+          gap: 0;
+        }
+        .sidebar-container.is-mobile-drawer .nav-item-wrapper {
+          justify-content: flex-start;
+        }
+        .sidebar-container.is-mobile-drawer .logo-section {
+          justify-content: space-between;
+          padding: 0 4px;
+        }
+
       `}</style>
     </div>
   );

@@ -30,17 +30,16 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div
-        className="modal-content glass-card"
+        className="modal-content glass-card login-modal-content"
         onClick={(e) => e.stopPropagation()}
-        style={{ width: 360 }}
       >
-        <div className="modal-header">
-          <h3>
-            <Icons.Lock size={16} style={{ marginRight: 8, verticalAlign: '-2px' }} />
-            管理员登录
-          </h3>
-          <button type="button" className="modal-close-btn" onClick={onClose} title="关闭">
-            <Icons.X size={18} />
+        <div className="modal-header login-modal-header">
+          <div className="login-header-left">
+            <Icons.Lock size={18} className="login-header-icon" />
+            <h3>管理员登录</h3>
+          </div>
+          <button type="button" className="modal-close-btn" onClick={onClose} title="关闭" aria-label="关闭">
+            <Icons.X size={20} />
           </button>
         </div>
 
@@ -162,6 +161,80 @@ export default function LoginModal({ isOpen, onClose, onSuccess }) {
           opacity: 0.6;
           cursor: not-allowed;
         }
+
+        .login-modal-content {
+          width: 360px;
+          max-width: min(360px, calc(100vw - 24px));
+          max-height: min(80dvh, calc(100dvh - 24px));
+          overflow-y: auto;
+        }
+
+        .login-header-left {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
+        }
+
+        .login-header-icon {
+          color: rgba(255, 255, 255, 0.85);
+          flex-shrink: 0;
+        }
+
+        .login-modal-header h3 {
+          margin: 0;
+        }
+
+        .modal-close-btn {
+          width: 32px;
+          height: 32px;
+        }
+
+        @media (max-width: 768px) {
+          .modal-overlay {
+            padding: 0;
+            align-items: stretch;
+            justify-content: stretch;
+          }
+
+          .login-modal-content.modal-content,
+          .modal-content.login-modal-content {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: 100% !important;
+            max-height: none !important;
+            border-radius: 0 !important;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            display: flex;
+            flex-direction: column;
+          }
+
+          .login-modal-header {
+            flex-shrink: 0;
+            padding: calc(14px + env(safe-area-inset-top, 0px)) 16px 14px;
+            min-height: 52px;
+          }
+
+          .login-modal-content .modal-form {
+            flex: 1;
+            justify-content: center;
+            padding: 24px 16px calc(24px + env(safe-area-inset-bottom, 0px));
+          }
+
+          .login-modal-content .modal-actions {
+            margin-top: 8px;
+            padding-top: 0;
+          }
+
+          .login-modal-content .modal-actions .glass-btn {
+            flex: 1;
+            justify-content: center;
+            min-height: 44px;
+          }
+        }
+
+
       `}</style>
     </div>
   );

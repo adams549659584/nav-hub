@@ -60,9 +60,9 @@ export default function IframeSessionDock({ sessions = [], onRestore, onClose })
       <style>{`
         .iframe-dock {
           position: fixed;
-          right: 16px;
-          bottom: 16px;
-          z-index: 210;
+          right: calc(12px + var(--safe-right, 0px));
+          bottom: calc(12px + var(--safe-bottom, 0px));
+          z-index: 80;
           display: flex;
           flex-direction: column;
           align-items: stretch;
@@ -198,6 +198,21 @@ export default function IframeSessionDock({ sessions = [], onRestore, onClose })
           color: #fca5a5;
           background: rgba(239, 68, 68, 0.15);
         }
+
+        @media (max-width: 768px) {
+          .iframe-dock {
+            right: calc(10px + var(--safe-right, 0px));
+            bottom: calc(10px + var(--safe-bottom, 0px));
+            left: calc(10px + var(--safe-left, 0px));
+            width: auto;
+            max-width: none;
+          }
+
+          .iframe-dock-list {
+            max-height: min(40vh, 220px);
+          }
+        }
+
       `}</style>
     </div>
   );

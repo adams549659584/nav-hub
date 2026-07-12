@@ -589,8 +589,9 @@ export default function EditShortcutModal({
 
       <style>{`
         .edit-shortcut-modal.modal-content {
-          width: 520px;
-          max-height: 85vh;
+          width: min(520px, calc(100vw - 24px));
+          max-width: min(520px, calc(100vw - 24px));
+          max-height: min(80dvh, 85vh);
           display: flex;
           flex-direction: column;
           overflow: hidden;
@@ -966,14 +967,119 @@ export default function EditShortcutModal({
         }
 
         .cancel-btn {
-          background: rgba(255, 255, 255, 0.05);
-          border-color: transparent;
+          background: rgba(255, 255, 255, 0.08) !important;
         }
 
         .save-btn {
-          background: linear-gradient(135deg, #3b82f6, #2563eb);
-          border-color: transparent;
+          background: rgba(59, 130, 246, 0.85) !important;
         }
+
+        @media (max-width: 768px) {
+          .modal-overlay {
+            padding: 0;
+            align-items: stretch;
+          }
+          .edit-shortcut-modal.modal-content {
+            width: min(520px, calc(100vw - 24px));
+            max-width: min(520px, calc(100vw - 24px));
+            height: 100% !important;
+            max-height: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            border-radius: 0 !important;
+          }
+
+          .edit-shortcut-modal .modal-actions {
+            gap: 10px;
+            padding: 14px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+          }
+
+          .edit-shortcut-modal .modal-actions .glass-btn {
+            flex: 1;
+            justify-content: center;
+            min-height: 44px;
+          }
+
+          /* 图标区：勿横排挤在一起，避免预览盖住上传/获取/SVG */
+          .icon-meta-row {
+            flex-wrap: wrap;
+            align-items: flex-end;
+            gap: 12px 10px;
+          }
+
+          .icon-meta-row .short-input {
+            width: 72px;
+            flex: 0 0 auto;
+            order: 1;
+          }
+
+          .icon-preview-group {
+            flex: 0 0 auto;
+            order: 2;
+            margin-left: 0;
+          }
+
+          .icon-actions-group {
+            flex: 1 1 100%;
+            width: 100%;
+            order: 3;
+            min-width: 100%;
+          }
+
+          .icon-upload-actions {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 8px;
+            width: 100%;
+          }
+
+          .icon-upload-btn {
+            width: 100%;
+            min-width: 0;
+            justify-content: center;
+            padding: 0 8px;
+          }
+
+          .icon-preview-container {
+            width: 40px;
+            height: 40px;
+            overflow: visible;
+          }
+
+          .icon-preview-tile {
+            width: 40px;
+            height: 40px;
+            font-size: 14px;
+          }
+
+          /* 清除钮不压到左侧按钮区 */
+          .icon-preview-clear {
+            top: -4px;
+            right: -4px;
+            z-index: 3;
+          }
+
+          .form-group-row {
+            flex-wrap: wrap;
+            gap: 12px;
+          }
+
+          .form-group-row > .form-group {
+            min-width: 0;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .icon-upload-actions {
+            grid-template-columns: 1fr;
+          }
+
+          .icon-upload-btn {
+            height: 38px;
+            font-size: 13px;
+          }
+        }
+
       `}</style>
     </div>
   );

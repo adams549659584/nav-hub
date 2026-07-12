@@ -60,7 +60,7 @@ export default function AddCategoryModal({
       <div
         className="modal-content glass-card animate-fade"
         onClick={(e) => e.stopPropagation()}
-        style={{ width: '420px' }}
+        style={{ width: '420px', maxWidth: 'min(420px, calc(100vw - 24px))', maxHeight: '80dvh', overflowY: 'auto' }}
       >
         <div className="modal-header">
           <h3>{editingCategory ? '编辑导航分类' : '新建导航分类'}</h3>
@@ -273,19 +273,45 @@ export default function AddCategoryModal({
         .modal-actions {
           display: flex;
           justify-content: flex-end;
-          gap: 12px;
+          gap: 10px;
           margin-top: 8px;
         }
 
         .cancel-btn {
-          background: rgba(255, 255, 255, 0.05);
-          border-color: transparent;
+          background: rgba(255, 255, 255, 0.08) !important;
         }
 
         .save-btn {
-          background: linear-gradient(135deg, #3b82f6, #2563eb);
-          border-color: transparent;
+          background: rgba(59, 130, 246, 0.85) !important;
         }
+
+        @media (max-width: 768px) {
+          .modal-overlay {
+            padding: 0;
+            align-items: stretch;
+          }
+          .modal-content {
+            width: 100% !important;
+            max-width: 100% !important;
+            height: 100% !important;
+            max-height: none !important;
+            border-radius: 0 !important;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+
+          .modal-actions {
+            gap: 10px;
+            margin-top: 8px;
+          }
+
+          .modal-actions .glass-btn {
+            flex: 1;
+            justify-content: center;
+            min-height: 44px;
+          }
+        }
+
       `}</style>
     </div>
   );

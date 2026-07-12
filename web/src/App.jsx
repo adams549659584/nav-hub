@@ -67,6 +67,8 @@ export default function App() {
   const [confirmDialog, setConfirmDialog] = useState(null);
   /** 命令面板 Cmd/Ctrl+K */
   const [isCommandOpen, setIsCommandOpen] = useState(false);
+  /** 移动端侧边栏抽屉 */
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   /**
    * 站内 iframe 会话：{ key, id, url, title, device }
    * activeIframeKey 为当前展开的；其余在右下角托盘可恢复（iframe 不卸载）
@@ -146,6 +148,7 @@ export default function App() {
   }, [isAdmin]);
 
   // 命令面板：⌘/Ctrl+K；非输入框时按 / 打开
+  // 任意浮层（设置/登录/预览等）都不拦截：面板挂 body 且 z-index 最高
   useEffect(() => {
     const isTypingTarget = (el) => {
       if (!el || !(el instanceof Element)) return false;
@@ -155,26 +158,16 @@ export default function App() {
       return !!el.closest('[contenteditable="true"]');
     };
 
-    // 仅登录/设置等表单弹层阻挡；站内预览不挡命令面板（面板 z-index 更高）
-    const hasFormOverlay = () =>
-      !!document.querySelector('.modal-overlay, .drawer-overlay');
-
     const onKeyDown = (e) => {
       const mod = e.metaKey || e.ctrlKey;
       if (mod && (e.key === 'k' || e.key === 'K')) {
-        if (isCommandOpen) {
-          e.preventDefault();
-          setIsCommandOpen(false);
-          return;
-        }
-        if (hasFormOverlay()) return;
         e.preventDefault();
-        setIsCommandOpen(true);
+        setIsCommandOpen((open) => !open);
         return;
       }
       if (e.key === '/' && !mod && !e.altKey) {
         if (isTypingTarget(e.target)) return;
-        if (isCommandOpen || hasFormOverlay()) return;
+        if (isCommandOpen) return;
         e.preventDefault();
         setIsCommandOpen(true);
       }
@@ -402,7 +395,11 @@ export default function App() {
 
   const handleOpenShortcut = useCallback((shortcut) => {
     if (!shortcut?.url) return;
-    if (shortcut.openMode === 'iframe') {
+    // 移动端屏幕小、多数站点也禁嵌，站内 iframe 预览收益低 → 一律新标签
+    const isMobileViewport =
+      typeof window !== 'undefined' &&
+      window.matchMedia('(max-width: 768px)').matches;
+    if (shortcut.openMode === 'iframe' && !isMobileViewport) {
       const key = `sc-${shortcut.id ?? shortcut.url}`;
       const device = shortcut.iframeDevice === 'mobile' ? 'mobile' : 'desktop';
       setIframeSessions((prev) => {
@@ -668,50 +665,75 @@ export default function App() {
         logoText={settings.logoText}
         logoBgColor={settings.logoBgColor}
         logoBgColorEnd={settings.logoBgColorEnd}
+        isMobileOpen={isMobileNavOpen}
+        onMobileClose={() => setIsMobileNavOpen(false)}
       />
+
+      {isMobileNavOpen && (
+        <button
+          type="button"
+          className="mobile-nav-overlay"
+          aria-label="关闭导航菜单"
+          onClick={() => setIsMobileNavOpen(false)}
+        />
+      )}
 
       <main className="main-content">
         <div className="top-actions-bar">
-          {configError && (
-            <span style={{ fontSize: 12, color: '#fcd34d', marginRight: 8 }}>{configError}</span>
-          )}
-          {saveError && (
-            <span style={{ fontSize: 12, color: '#fca5a5', marginRight: 8 }}>{saveError}</span>
-          )}
-          {isAdmin ? (
-            <>
-              <button
-                className={`glass-btn edit-toggle-btn ${isEditing ? 'active-editing' : ''}`}
-                onClick={() => setIsEditing(!isEditing)}
-              >
-                {isEditing ? (
-                  <>
-                    <Icons.Check size={14} />
-                    <span>退出编辑</span>
-                  </>
-                ) : (
-                  <>
-                    <Icons.Edit3 size={14} />
-                    <span>编辑布局</span>
-                  </>
-                )}
-              </button>
-              <button className="glass-btn edit-toggle-btn" onClick={handleLogout} type="button">
-                <Icons.LogOut size={14} />
-                <span>退出</span>
-              </button>
-            </>
-          ) : (
+          <div className="top-actions-left">
             <button
-              className="glass-btn edit-toggle-btn icon-only-btn"
-              onClick={() => setIsLoginOpen(true)}
               type="button"
-              title="设置"
-              aria-label="设置"
+              className="glass-btn mobile-menu-btn"
+              onClick={() => setIsMobileNavOpen(true)}
+              aria-label="打开导航菜单"
+              title="菜单"
             >
-              <Icons.Settings size={16} />
+              <Icons.Menu size={18} />
             </button>
-          )}
+          </div>
+          <div className="top-actions-right">
+            {configError && (
+              <span style={{ fontSize: 12, color: '#fcd34d', marginRight: 8 }}>{configError}</span>
+            )}
+            {saveError && (
+              <span style={{ fontSize: 12, color: '#fca5a5', marginRight: 8 }}>{saveError}</span>
+            )}
+            {isAdmin ? (
+              <>
+                <button
+                  className={`glass-btn edit-toggle-btn ${isEditing ? 'active-editing' : ''}`}
+                  onClick={() => setIsEditing(!isEditing)}
+                  type="button"
+                >
+                  {isEditing ? (
+                    <>
+                      <Icons.Check size={14} />
+                      <span className="btn-label">退出编辑</span>
+                    </>
+                  ) : (
+                    <>
+                      <Icons.Edit3 size={14} />
+                      <span className="btn-label">编辑布局</span>
+                    </>
+                  )}
+                </button>
+                <button className="glass-btn edit-toggle-btn" onClick={handleLogout} type="button">
+                  <Icons.LogOut size={14} />
+                  <span className="btn-label">退出</span>
+                </button>
+              </>
+            ) : (
+              <button
+                className="glass-btn edit-toggle-btn icon-only-btn"
+                onClick={() => setIsLoginOpen(true)}
+                type="button"
+                title="设置"
+                aria-label="设置"
+              >
+                <Icons.Settings size={16} />
+              </button>
+            )}
+          </div>
         </div>
 
         {settings.showCalendar && <CalendarWidget isHeader={true} />}
@@ -895,9 +917,22 @@ export default function App() {
           align-self: flex-end;
           display: flex;
           gap: 12px;
-          margin-bottom: -10px;
+          margin-bottom: 0;
           z-index: 25;
           align-items: center;
+          justify-content: flex-end;
+          width: auto;
+        }
+
+        .top-actions-left {
+          display: none;
+          align-items: center;
+        }
+
+        .top-actions-right {
+          display: flex;
+          align-items: center;
+          gap: 12px;
         }
 
         .edit-toggle-btn {
@@ -921,6 +956,38 @@ export default function App() {
 
         .edit-toggle-btn.active-editing:hover {
           background: rgba(239, 68, 68, 0.35);
+        }
+
+        @media (max-width: 768px) {
+          .top-actions-bar {
+            align-self: stretch;
+            width: 100%;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            gap: 8px;
+          }
+
+          .top-actions-left {
+            display: flex;
+          }
+
+          .top-actions-right {
+            gap: 8px;
+            margin-left: auto;
+          }
+
+          .edit-toggle-btn {
+            width: 36px;
+            min-width: 36px;
+            height: 36px;
+            padding: 0;
+            justify-content: center;
+            border-radius: 12px;
+          }
+
+          .edit-toggle-btn .btn-label {
+            display: none;
+          }
         }
       `}</style>
     </div>

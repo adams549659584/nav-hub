@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import * as Icons from 'lucide-react';
 import { DEFAULT_SETTINGS, SEARCH_ENGINES } from '../utils/defaultData';
 import WallpaperLibrary from './WallpaperLibrary';
@@ -18,6 +18,16 @@ import {
 import PasswordInput from './PasswordInput';
 import SearchEngineIcon from './SearchEngineIcon';
 
+
+const SETTINGS_TABS = [
+  { id: 'wallpaper', label: '壁纸设置', desc: '壁纸库、模糊与亮度', icon: 'Image' },
+  { id: 'site', label: '站点品牌', desc: '标题、描述与 Logo', icon: 'Sparkles' },
+  { id: 'layout', label: '布局样式', desc: '网格、图标与搜索引擎', icon: 'LayoutGrid' },
+  { id: 'widgets', label: '功能开关', desc: '日历、一言与联想', icon: 'ToggleLeft' },
+  { id: 'data', label: '数据', desc: '备份、还原与清空', icon: 'Database' },
+  { id: 'account', label: '账号', desc: '修改管理员密码', icon: 'KeyRound' },
+];
+
 export default function SettingsModal({
   isOpen,
   onClose,
@@ -29,7 +39,66 @@ export default function SettingsModal({
   onConfirmRestore,
 }) {
   const [activeTab, setActiveTab] = useState('wallpaper');
+  /** 移动端：list=设置首页列表，detail=某一分类内容（类 iOS 设置） */
+  const [mobileNavMode, setMobileNavMode] = useState('list');
+  const [isMobileViewport, setIsMobileViewport] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(max-width: 768px)').matches : false
+  );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(max-width: 768px)');
+    const onChange = (event) => setIsMobileViewport(event.matches);
+    onChange(mediaQuery);
+    mediaQuery.addEventListener('change', onChange);
+    return () => mediaQuery.removeEventListener('change', onChange);
+  }, []);
+
+  // 仅在设置从关→开时重置手机列表；不要依赖 isMobileViewport
+  //（打开壁纸库等全屏层时滚动条变化会触发 matchMedia，误把 detail 打回 list）
+  const wasSettingsOpenRef = useRef(false);
+  useEffect(() => {
+    if (isOpen && !wasSettingsOpenRef.current) {
+      if (typeof window !== 'undefined' && window.matchMedia('(max-width: 768px)').matches) {
+        setMobileNavMode('list');
+      }
+    }
+    wasSettingsOpenRef.current = isOpen;
+  }, [isOpen]);
+
+  const openMobileSection = useCallback((tabId) => {
+    setActiveTab(tabId);
+    setMobileNavMode('detail');
+  }, []);
+
+  const backToMobileList = useCallback(() => {
+    if (Date.now() < ignoreSettingsNavUntilRef.current) return;
+    setMobileNavMode('list');
+  }, []);
+
+  const activeTabMeta = SETTINGS_TABS.find((tab) => tab.id === activeTab) || SETTINGS_TABS[0];
+
   const [wpLibOpen, setWpLibOpen] = useState(false);
+  const [wpLibInstanceKey, setWpLibInstanceKey] = useState(0);
+  const [wpPreviewOpen, setWpPreviewOpen] = useState(false);
+  /** 壁纸库刚关闭后的短时间内忽略返回/关设置，防止移动端点穿 */
+  const ignoreSettingsNavUntilRef = useRef(0);
+  const prevWpLibOpenRef = useRef(false);
+
+  // 设置关闭时一并收起壁纸库/预览，避免下次状态残留
+  useEffect(() => {
+    if (!isOpen) {
+      setWpLibOpen(false);
+      setWpPreviewOpen(false);
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (prevWpLibOpenRef.current && !wpLibOpen) {
+      // 库从开→关：吞掉同一手势落到设置「返回/遮罩」上的残余点击
+      ignoreSettingsNavUntilRef.current = Date.now() + 500;
+    }
+    prevWpLibOpenRef.current = wpLibOpen;
+  }, [wpLibOpen]);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -40,6 +109,15 @@ export default function SettingsModal({
   const [backupError, setBackupError] = useState('');
   const [backupOk, setBackupOk] = useState('');
   const backupInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!wpPreviewOpen) return undefined;
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') setWpPreviewOpen(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [wpPreviewOpen]);
 
   if (!isOpen) return null;
 
@@ -173,68 +251,105 @@ export default function SettingsModal({
   };
 
   return (
-    <div className="drawer-overlay" onClick={onClose}>
+    <div
+      className="drawer-overlay"
+      onClick={() => {
+        // 壁纸库/全屏预览打开时，忽略遮罩点击，避免误关整个设置
+        if (wpLibOpen || wpPreviewOpen) return;
+        if (Date.now() < ignoreSettingsNavUntilRef.current) return;
+        onClose();
+      }}
+    >
       <div className="drawer-content glass-card" onClick={(e) => e.stopPropagation()}>
-        {/* Header */}
+                {/* Header */}
         <div className="drawer-header">
-          <div className="header-title">
-            <Icons.Settings size={18} />
-            <span>全局设置</span>
+          <div className="header-left">
+            {isMobileViewport && mobileNavMode === 'detail' ? (
+              <>
+                {(() => {
+                  const TabIcon = Icons[activeTabMeta.icon] || Icons.Settings;
+                  return <TabIcon size={18} className="header-leading-icon" />;
+                })()}
+                <span className="header-title-text">{activeTabMeta.label}</span>
+              </>
+            ) : (
+              <>
+                <Icons.Settings size={18} className="header-leading-icon" />
+                <span className="header-title-text">全局设置</span>
+              </>
+            )}
           </div>
-          <button className="drawer-close-btn" onClick={onClose}>
-            <Icons.X size={20} />
-          </button>
+          <div className="header-right">
+            <button
+              className="drawer-close-btn"
+              onClick={() => {
+                if (Date.now() < ignoreSettingsNavUntilRef.current) return;
+                if (isMobileViewport && mobileNavMode === 'detail') {
+                  backToMobileList();
+                  return;
+                }
+                onClose();
+              }}
+              type="button"
+              title={isMobileViewport && mobileNavMode === 'detail' ? '返回' : '关闭'}
+              aria-label={isMobileViewport && mobileNavMode === 'detail' ? '返回设置列表' : '关闭'}
+            >
+              <Icons.X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* Inner container */}
-        <div className="drawer-inner">
-          {/* Tab Sidebar */}
-          <div className="drawer-tabs">
-            <button
-              className={`tab-btn ${activeTab === 'wallpaper' ? 'active' : ''}`}
-              onClick={() => setActiveTab('wallpaper')}
-            >
-              <Icons.Image size={16} />
-              <span>壁纸设置</span>
-            </button>
-            <button
-              className={`tab-btn ${activeTab === 'site' ? 'active' : ''}`}
-              onClick={() => setActiveTab('site')}
-            >
-              <Icons.Sparkles size={16} />
-              <span>站点品牌</span>
-            </button>
-            <button
-              className={`tab-btn ${activeTab === 'layout' ? 'active' : ''}`}
-              onClick={() => setActiveTab('layout')}
-            >
-              <Icons.LayoutGrid size={16} />
-              <span>布局样式</span>
-            </button>
-            <button
-              className={`tab-btn ${activeTab === 'widgets' ? 'active' : ''}`}
-              onClick={() => setActiveTab('widgets')}
-            >
-              <Icons.ToggleLeft size={16} />
-              <span>功能开关</span>
-            </button>
-            <button
-              className={`tab-btn ${activeTab === 'data' ? 'active' : ''}`}
-              onClick={() => setActiveTab('data')}
-            >
-              <Icons.Database size={16} />
-              <span>数据</span>
-            </button>
-            <button
-              className={`tab-btn ${activeTab === 'account' ? 'active' : ''}`}
-              onClick={() => setActiveTab('account')}
-            >
-              <Icons.KeyRound size={16} />
-              <span>账号</span>
-            </button>
-          </div>
+        <div
+          className={`drawer-inner${
+            isMobileViewport && mobileNavMode === 'list' ? ' is-mobile-menu' : ''
+          }${isMobileViewport && mobileNavMode === 'detail' ? ' is-mobile-detail' : ''}`}
+        >
+          {/* Desktop: left tabs / Mobile list: section menu */}
+          {(!isMobileViewport || mobileNavMode === 'list') && (
+            <div className={`drawer-tabs${isMobileViewport ? ' is-mobile-menu-list' : ''}`}>
+              {isMobileViewport ? (
+                SETTINGS_TABS.map((tab) => {
+                  const TabIcon = Icons[tab.icon] || Icons.Settings;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      className="settings-menu-item"
+                      onClick={() => openMobileSection(tab.id)}
+                    >
+                      <span className="settings-menu-icon">
+                        <TabIcon size={18} />
+                      </span>
+                      <span className="settings-menu-text">
+                        <span className="settings-menu-label">{tab.label}</span>
+                        <span className="settings-menu-desc">{tab.desc}</span>
+                      </span>
+                      <Icons.ChevronRight size={16} className="settings-menu-chevron" />
+                    </button>
+                  );
+                })
+              ) : (
+                SETTINGS_TABS.map((tab) => {
+                  const TabIcon = Icons[tab.icon] || Icons.Settings;
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
+                      onClick={() => setActiveTab(tab.id)}
+                    >
+                      <TabIcon size={16} />
+                      <span>{tab.label}</span>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+          )}
 
-          {/* Tab Content */}
+          {/* Tab Content：桌面始终显示；手机仅 detail */}
+          {(!isMobileViewport || mobileNavMode === 'detail') && (
           <div className="drawer-pane">
             {/* WALLPAPER PANE */}
             {activeTab === 'wallpaper' && (
@@ -257,6 +372,19 @@ export default function SettingsModal({
                         <Icons.Play size={14} /> 动态
                       </span>
                     )}
+                    {/* 与壁纸库瓦片一致：右下角全屏预览按钮 */}
+                    {!(wp.type === 'color' || (wp.src || '').startsWith('#')) &&
+                      (wp.src || wp.thumb) && (
+                        <button
+                          type="button"
+                          className="wp-preview-btn"
+                          title="全屏预览"
+                          aria-label="全屏预览"
+                          onClick={() => setWpPreviewOpen(true)}
+                        >
+                          <Icons.Maximize2 size={13} />
+                        </button>
+                      )}
                   </div>
                   <div className="wp-current-meta">
                     <div className="wp-current-title">{wp.title || '未命名壁纸'}</div>
@@ -265,7 +393,21 @@ export default function SettingsModal({
                       {wp.type === 'video' ? ' · 视频' : ''}
                     </div>
                     <div className="wp-current-actions">
-                      <button type="button" className="glass-btn" onClick={() => setWpLibOpen(true)}>
+                      <button
+                        type="button"
+                        className="glass-btn"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          // 固定停在壁纸详情，避免被其它逻辑打回列表
+                          setActiveTab('wallpaper');
+                          setMobileNavMode('detail');
+                          // 推迟到当前点击手势结束，避免同一 tap 落到新开的壁纸库遮罩上立刻关闭
+                          setWpLibInstanceKey((key) => key + 1);
+                          window.setTimeout(() => setWpLibOpen(true), 50);
+                        }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                      >
                         <Icons.Images size={14} />
                         更换壁纸
                       </button>
@@ -687,12 +829,77 @@ export default function SettingsModal({
             )}
 
           </div>
+          )}
+
         </div>
       </div>
 
-      <WallpaperLibrary
+      
+      {wpPreviewOpen && (
+        <div
+          className="wp-fullscreen-preview"
+          role="dialog"
+          aria-modal="true"
+          aria-label="壁纸全屏预览"
+          onClick={(e) => {
+            // 点黑边只关预览，勿冒泡到 drawer-overlay 把整个设置关掉
+            e.stopPropagation();
+            setWpPreviewOpen(false);
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <button
+            type="button"
+            className="wp-fullscreen-close"
+            onClick={(e) => {
+              e.stopPropagation();
+              setWpPreviewOpen(false);
+            }}
+            aria-label="关闭预览"
+          >
+            <Icons.X size={20} />
+          </button>
+          <div
+            className="wp-fullscreen-stage"
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            {wp.type === 'color' || (wp.src || '').startsWith('#') ? (
+              <div
+                className="wp-fullscreen-color"
+                style={{ backgroundColor: wp.src || '#111' }}
+              />
+            ) : wp.type === 'video' && wp.src ? (
+              <video
+                className="wp-fullscreen-media"
+                src={wp.src}
+                autoPlay
+                muted
+                loop
+                playsInline
+                controls
+              />
+            ) : wp.src || wp.thumb ? (
+              <img
+                className="wp-fullscreen-media"
+                src={wp.src || wp.thumb}
+                alt={wp.title || '壁纸预览'}
+              />
+            ) : (
+              <div className="wp-fullscreen-empty">暂无壁纸</div>
+            )}
+          </div>
+        </div>
+      )}
+
+<WallpaperLibrary
+        key={wpLibInstanceKey}
         isOpen={wpLibOpen}
-        onClose={() => setWpLibOpen(false)}
+        onClose={() => {
+          // 同步写入：必须在 setState 之前，否则点穿会先触发设置「返回」
+          ignoreSettingsNavUntilRef.current = Date.now() + 600;
+          setWpLibOpen(false);
+        }}
         current={wp}
         onSelect={(item) => onUpdateSettings(applyWallpaperSelection(settings, item))}
         onApplyCustom={(url) =>
@@ -744,15 +951,140 @@ export default function SettingsModal({
           align-items: stretch;
         }
         .wp-current-preview {
+          position: relative;
           width: 160px;
-          height: 90px;
-          border-radius: 10px;
+          height: 100px;
+          border-radius: 12px;
           background-size: cover;
           background-position: center;
+          background-repeat: no-repeat;
+          border: 1px solid rgba(255, 255, 255, 0.1);
           flex-shrink: 0;
-          border: 1px solid rgba(255,255,255,0.1);
-          position: relative;
           overflow: hidden;
+          padding: 0;
+          margin: 0;
+          display: block;
+          transition: border-color 0.15s, transform 0.15s;
+        }
+
+        .wp-current-preview:hover {
+          border-color: rgba(255, 255, 255, 0.35);
+          transform: translateY(-1px);
+        }
+
+        /* 与壁纸库 .wp-lib-preview-btn 一致 */
+        .wp-preview-btn {
+          position: absolute;
+          right: 6px;
+          bottom: 6px;
+          z-index: 3;
+          width: 28px;
+          height: 28px;
+          border-radius: 8px;
+          border: none;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          background: rgba(0, 0, 0, 0.55);
+          color: rgba(255, 255, 255, 0.92);
+          backdrop-filter: blur(6px);
+          -webkit-backdrop-filter: blur(6px);
+          opacity: 0.92;
+          cursor: pointer;
+          transition: background 0.15s, opacity 0.15s, transform 0.15s;
+          padding: 0;
+        }
+
+        .wp-current-preview:hover .wp-preview-btn,
+        .wp-preview-btn:focus-visible {
+          opacity: 1;
+          background: rgba(0, 0, 0, 0.72);
+        }
+
+        .wp-preview-btn:hover {
+          transform: scale(1.06);
+          background: rgba(59, 130, 246, 0.85);
+        }
+
+        .wp-preview-btn:focus-visible {
+          outline: 2px solid rgba(59, 130, 246, 0.8);
+          outline-offset: 2px;
+        }
+
+        .wp-fullscreen-preview {
+          position: fixed;
+          inset: 0;
+          z-index: 400;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: max(16px, env(safe-area-inset-top, 0px))
+            max(16px, env(safe-area-inset-right, 0px))
+            max(16px, env(safe-area-inset-bottom, 0px))
+            max(16px, env(safe-area-inset-left, 0px));
+          background: rgba(0, 0, 0, 0.82);
+          backdrop-filter: blur(12px) saturate(1.05);
+          -webkit-backdrop-filter: blur(12px) saturate(1.05);
+          animation: fadeIn 0.18s ease;
+          cursor: zoom-out;
+        }
+
+        .wp-fullscreen-close {
+          position: absolute;
+          top: max(12px, env(safe-area-inset-top, 0px));
+          right: max(12px, env(safe-area-inset-right, 0px));
+          width: 40px;
+          height: 40px;
+          border: none;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.12);
+          color: #fff;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          z-index: 2;
+        }
+
+        .wp-fullscreen-close:hover {
+          background: rgba(255, 255, 255, 0.2);
+        }
+
+        .wp-fullscreen-stage {
+          position: relative;
+          max-width: min(1200px, 100%);
+          max-height: 100%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+          cursor: default;
+        }
+
+        .wp-fullscreen-media {
+          display: block;
+          max-width: min(1200px, 100%);
+          max-height: min(82dvh, calc(100dvh - 120px));
+          width: auto;
+          height: auto;
+          object-fit: contain;
+          border-radius: 12px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+          background: #0a0a0a;
+        }
+
+        .wp-fullscreen-color {
+          width: min(900px, 92vw);
+          height: min(56dvh, 420px);
+          border-radius: 12px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .wp-fullscreen-empty {
+          color: rgba(255, 255, 255, 0.5);
+          font-size: 14px;
+          padding: 48px;
         }
         .wp-current-video {
           position: absolute;
@@ -922,6 +1254,87 @@ export default function SettingsModal({
           font-family: inherit;
         }
 
+
+        .drawer-header {
+          position: relative;
+        }
+
+        .header-left,
+        .header-right {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-width: 0;
+          z-index: 1;
+        }
+
+        .header-right {
+          margin-left: auto;
+          flex-shrink: 0;
+        }
+
+        .header-leading-icon {
+          color: rgba(255, 255, 255, 0.85);
+          flex-shrink: 0;
+        }
+
+        .header-title-text {
+          font-size: 16px;
+          font-weight: 600;
+          color: #fff;
+        }
+
+        .header-title-center {
+          display: none;
+          position: absolute;
+          left: 50%;
+          transform: translateX(-50%);
+          max-width: min(46%, 200px);
+          text-align: center;
+          font-size: 15px;
+          font-weight: 600;
+          color: #fff;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          pointer-events: none;
+        }
+
+        .drawer-back-btn {
+          display: none;
+          align-items: center;
+          gap: 0;
+          margin: 0;
+          padding: 6px 8px 6px 2px;
+          border: none;
+          border-radius: 10px;
+          background: transparent;
+          color: rgba(255, 255, 255, 0.88);
+          font-size: 15px;
+          font-weight: 500;
+          line-height: 1;
+          cursor: pointer;
+          -webkit-tap-highlight-color: transparent;
+        }
+
+        .drawer-back-btn svg {
+          flex-shrink: 0;
+          margin-right: -2px;
+        }
+
+        .drawer-back-btn:hover {
+          color: #fff;
+          background: rgba(255, 255, 255, 0.08);
+        }
+
+        .drawer-back-btn:active {
+          opacity: 0.75;
+        }
+
+        .settings-menu-item {
+          display: none;
+        }
+
         .drawer-overlay {
           position: fixed;
           top: 0;
@@ -954,11 +1367,14 @@ export default function SettingsModal({
         }
 
         .drawer-header {
+          position: relative;
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          padding: 20px 24px;
+          justify-content: space-between;
+          min-height: 52px;
+          padding: 12px 16px;
           border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          gap: 8px;
         }
 
         .header-title {
@@ -973,12 +1389,20 @@ export default function SettingsModal({
         .drawer-close-btn {
           background: none;
           border: none;
-          color: rgba(255, 255, 255, 0.5);
+          color: rgba(255, 255, 255, 0.55);
           cursor: pointer;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0;
         }
 
         .drawer-close-btn:hover {
-          color: white;
+          color: #fff;
+          background: rgba(255, 255, 255, 0.08);
         }
 
         .drawer-inner {
@@ -1220,6 +1644,154 @@ export default function SettingsModal({
         .animate-fade {
           animation: fadeIn 0.25s ease;
         }
+
+        @media (max-width: 768px) {
+          .drawer-overlay {
+            /* 与壁纸库一致：移动端全屏 */
+            padding: 0;
+          }
+          .drawer-content {
+            width: 100%;
+            max-width: 100%;
+            height: 100%;
+            border-radius: 0;
+          }
+
+          .drawer-inner {
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+          }
+
+          .drawer-inner.is-mobile-menu .drawer-tabs {
+            display: flex;
+          }
+
+          .drawer-inner.is-mobile-detail .drawer-tabs {
+            display: none;
+          }
+
+          /* 手机：设置首页列表（非横滑 Tab） */
+          .drawer-tabs.is-mobile-menu-list {
+            width: 100%;
+            max-width: 100%;
+            flex: 1 1 auto;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+            overflow-x: hidden;
+            overflow-y: auto;
+            border-right: none;
+            border-bottom: none;
+            padding: 12px 14px calc(16px + var(--safe-bottom, 0px));
+            background: transparent;
+            min-height: 0;
+            -webkit-overflow-scrolling: touch;
+          }
+
+          .drawer-tabs.is-mobile-menu-list .tab-btn {
+            display: none;
+          }
+
+          .settings-menu-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 14px 14px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.06);
+            color: #fff;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.15s, border-color 0.15s, transform 0.15s;
+          }
+
+          .settings-menu-item:active {
+            transform: scale(0.98);
+            background: rgba(255, 255, 255, 0.1);
+          }
+
+          .settings-menu-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 12px;
+            background: rgba(59, 130, 246, 0.22);
+            color: #93c5fd;
+            flex-shrink: 0;
+          }
+
+          .settings-menu-text {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
+          }
+
+          .settings-menu-label {
+            font-size: 15px;
+            font-weight: 600;
+            line-height: 1.2;
+          }
+
+          .settings-menu-desc {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+            line-height: 1.3;
+          }
+
+          .settings-menu-chevron {
+            flex-shrink: 0;
+            color: rgba(255, 255, 255, 0.35);
+          }
+
+          .drawer-pane {
+            flex: 1 1 auto;
+            min-height: 0;
+            min-width: 0;
+            padding: 16px 14px calc(16px + var(--safe-bottom, 0px));
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+
+          .drawer-header {
+            flex: 0 0 auto;
+            padding: calc(12px + var(--safe-top, 0px)) 12px 12px;
+            min-height: 48px;
+          }
+
+          .wp-current-row {
+            flex-direction: column;
+          }
+
+          .wp-current-preview {
+            width: 100%;
+            height: 140px;
+          }
+
+          .wp-preview-btn {
+            opacity: 1;
+            width: 30px;
+            height: 30px;
+          }
+
+          .wp-fullscreen-media {
+            max-height: min(78dvh, calc(100dvh - 100px));
+          }
+
+
+          .select-grid-2 {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+          }
+        }
+
+
       `}</style>
     </div>
   );

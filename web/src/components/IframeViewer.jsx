@@ -226,7 +226,7 @@ export default function IframeViewer({
         .iframe-viewer-overlay {
           position: fixed;
           inset: 0;
-          z-index: 220;
+          z-index: 80;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -443,6 +443,51 @@ export default function IframeViewer({
           color: #fff;
           background: rgba(59, 130, 246, 0.5);
         }
+
+        @media (max-width: 768px) {
+          .iframe-viewer-overlay:not(.is-hidden) {
+            padding: 0;
+            align-items: stretch;
+            justify-content: stretch;
+          }
+
+          .iframe-viewer-overlay:not(.is-hidden) .iframe-viewer-stack {
+            width: 100%;
+            height: 100%;
+            max-width: 100%;
+            max-height: 100%;
+            flex-direction: column;
+            gap: 0;
+          }
+
+          .iframe-viewer-window {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 0;
+            flex: 1;
+          }
+
+          .iframe-viewer-window.device-mobile {
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100%;
+            border-radius: 0;
+          }
+
+          .iframe-viewer-header,
+          .iframe-viewer-toolbar,
+          .iframe-side-rail {
+            padding-left: calc(8px + var(--safe-left, 0px));
+            padding-right: calc(8px + var(--safe-right, 0px));
+          }
+
+          .iframe-viewer-header {
+            padding-top: calc(8px + var(--safe-top, 0px));
+          }
+        }
+
       `}</style>
     </div>
   );
